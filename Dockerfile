@@ -2,11 +2,13 @@
 # Stage 1: Build stage
 FROM eclipse-temurin:17-jdk AS builder
 
+# Install Maven
+RUN apt-get update && apt-get install -y maven && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copy Maven configuration files
-COPY .mvn/ .mvn
-COPY mvnw pom.xml ./
+COPY pom.xml ./
 
 # Copy all service pom files for dependency resolution
 COPY config-server/pom.xml ./config-server/
@@ -17,7 +19,7 @@ COPY product-service/pom.xml ./product-service/
 COPY order-service/pom.xml ./order-service/
 
 # Download dependencies (cached layer)
-RUN ./mvnw dependency:go-offline -B
+RUN mvn dependency:go-offline -B
 
 # Copy source code
 COPY config-server/src ./config-server/src
@@ -28,7 +30,7 @@ COPY product-service/src ./product-service/src
 COPY order-service/src ./order-service/src
 
 # Build all services
-RUN ./mvnw clean package -DskipTests
+RUN mvn clean package -DskipTests
 
 # Stage 2: Runtime stage
 FROM eclipse-temurin:17-jre-noble

@@ -12,40 +12,40 @@ services:
     host: containerapp
     language: java
     docker:
-      path: ../Dockerfile
-      context: ..
+      path: ./Dockerfile
+      context: .
   config-server:
     project: config-server
     host: containerapp
     language: java
     docker:
-      path: ../Dockerfile
-      context: ..
+      path: ./Dockerfile
+      context: .
   gateway-service:
     project: gateway-service
     host: containerapp
     language: java
     docker:
-      path: ../Dockerfile
-      context: ..
+      path: ./Dockerfile
+      context: .
   user-service:
     project: user-service
     host: containerapp
     language: java
     docker:
-      path: ../Dockerfile
-      context: ..
+      path: ./Dockerfile
+      context: .
   product-service:
     project: product-service
     host: containerapp
     language: java
     docker:
-      path: ../Dockerfile
-      context: ..
+      path: ./Dockerfile
+      context: .
   order-service:
     project: order-service
     host: containerapp
     language: java
     docker:
-      path: ../Dockerfile
-      context: ..
+      path: ./Dockerfile
+      context: .

@@ -9,12 +9,18 @@ dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
+.mvn/
+!.mvn/wrapper/maven-wrapper.properties
 
 # Compiled class files
 *.class
 
 # Log files
 *.log
+
+# Spring Boot
+spring-boot.log
+nohup.out
 
 # BlueJ files
 *.ctxt
@@ -33,6 +39,10 @@ buildNumber.properties
 
 # Virtual machine crash logs
 hs_err_pid*
+replay_pid*
+
+# Spring Boot DevTools
+.spring-boot-devtools.properties
 
 # IDE files
 .idea/
@@ -43,6 +53,18 @@ hs_err_pid*
 .settings/
 .project
 .classpath
+.factorypath
+.metadata/
+.recommenders/
+
+# Eclipse
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
 
 # OS files
 .DS_Store
@@ -58,6 +80,23 @@ Thumbs.db
 
 # Docker
 .docker/
+docker-compose.override.yml
+docker-compose.*.yml
+!docker-compose.yml
+
+# Kubernetes
+*.k8s.yml
+*.k8s.yaml
+!base.k8s.yml
+!base.k8s.yaml
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+*.auto.tfvars
 
 # Environment variables
 .env
@@ -71,3 +110,28 @@ application-local.yml
 application-*.yml
 !application.yml
 !application-docker.yml
+
+# Test reports
+test-results/
+coverage/
+jacoco.exec
+*.lcov
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+*.pid
+*.seed
+*.pid.lock
+
+# Node.js (if using frontend tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# H2 Database files
+*.db
+*.mv.db
+*.trace.db
