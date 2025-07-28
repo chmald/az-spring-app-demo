@@ -1,0 +1,152 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "springAppsServiceName": {
+      "type": "string",
+      "defaultValue": "az-spring-app-demo",
+      "metadata": {
+        "description": "Name of the Azure Spring Apps service"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources"
+      }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().name]",
+      "metadata": {
+        "description": "Resource group name"
+      }
+    }
+  },
+  "variables": {
+    "springAppsServiceName": "[parameters('springAppsServiceName')]",
+    "applications": [
+      {
+        "name": "eureka-server",
+        "runtime": "Java_17",
+        "cpu": "1",
+        "memory": "2Gi"
+      },
+      {
+        "name": "config-server",
+        "runtime": "Java_17",
+        "cpu": "1",
+        "memory": "2Gi"
+      },
+      {
+        "name": "gateway-service",
+        "runtime": "Java_17",
+        "cpu": "1",
+        "memory": "2Gi"
+      },
+      {
+        "name": "user-service",
+        "runtime": "Java_17",
+        "cpu": "1",
+        "memory": "2Gi"
+      },
+      {
+        "name": "product-service",
+        "runtime": "Java_17",
+        "cpu": "1",
+        "memory": "2Gi"
+      },
+      {
+        "name": "order-service",
+        "runtime": "Java_17",
+        "cpu": "1",
+        "memory": "2Gi"
+      }
+    ]
+  },
+  "resources": [
+    {
+      "type": "Microsoft.AppPlatform/Spring",
+      "apiVersion": "2023-12-01",
+      "name": "[variables('springAppsServiceName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "S0",
+        "tier": "Standard"
+      },
+      "properties": {
+        "configServerProperties": {
+          "configServer": {
+            "gitProperty": {
+              "uri": "https://github.com/chmald/az-spring-app-demo-config",
+              "label": "main"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.AppPlatform/Spring/apps",
+      "apiVersion": "2023-12-01",
+      "name": "[concat(variables('springAppsServiceName'), '/', variables('applications')[copyIndex()].name)]",
+      "dependsOn": [
+        "[resourceId('Microsoft.AppPlatform/Spring', variables('springAppsServiceName'))]"
+      ],
+      "copy": {
+        "name": "applicationLoop",
+        "count": "[length(variables('applications'))]"
+      },
+      "properties": {
+        "public": true,
+        "httpsOnly": false,
+        "temporaryDisk": {
+          "sizeInGB": 5,
+          "mountPath": "/tmp"
+        },
+        "persistentDisk": {
+          "sizeInGB": 0,
+          "mountPath": "/persistent"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.AppPlatform/Spring/apps/deployments",
+      "apiVersion": "2023-12-01",
+      "name": "[concat(variables('springAppsServiceName'), '/', variables('applications')[copyIndex()].name, '/default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.AppPlatform/Spring/apps', variables('springAppsServiceName'), variables('applications')[copyIndex()].name)]"
+      ],
+      "copy": {
+        "name": "deploymentLoop",
+        "count": "[length(variables('applications'))]"
+      },
+      "properties": {
+        "deploymentSettings": {
+          "resourceRequests": {
+            "cpu": "[variables('applications')[copyIndex()].cpu]",
+            "memory": "[variables('applications')[copyIndex()].memory]"
+          },
+          "runtimeVersion": "[variables('applications')[copyIndex()].runtime]",
+          "environmentVariables": {
+            "SPRING_PROFILES_ACTIVE": "azure"
+          }
+        },
+        "source": {
+          "type": "Jar",
+          "relativePath": "<default>"
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "springAppsServiceName": {
+      "type": "string",
+      "value": "[variables('springAppsServiceName')]"
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "value": "[parameters('resourceGroupName')]"
+    }
+  }
+}

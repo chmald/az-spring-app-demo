@@ -1,5 +1,5 @@
+com/azure/demo/userservice/repository/UserRepository.class
 com/azure/demo/userservice/controller/UserController.class
 com/azure/demo/userservice/model/User.class
 com/azure/demo/userservice/UserServiceApplication.class
 com/azure/demo/userservice/service/UserService.class
-com/azure/demo/userservice/repository/UserRepository.class

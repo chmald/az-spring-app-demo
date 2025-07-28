@@ -1,0 +1,217 @@
+name: Azure Spring Apps Demo CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  JAVA_VERSION: '17'
+  MAVEN_VERSION: '3.9.x'
+  AZURE_SPRING_APPS_SERVICE: 'az-spring-app-demo'
+  AZURE_RESOURCE_GROUP: 'az-spring-app-demo-rg'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Test Applications
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+        
+    - name: Run tests
+      run: mvn clean test
+      
+    - name: Generate test report
+      uses: dorny/test-reporter@v1
+      if: success() || failure()
+      with:
+        name: Maven Tests
+        path: '**/target/surefire-reports/*.xml'
+        reporter: java-junit
+
+  build:
+    runs-on: ubuntu-latest
+    name: Build Applications
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+        
+    - name: Build applications
+      run: mvn clean package -DskipTests
+      
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: jar-artifacts
+        path: |
+          */target/*.jar
+        retention-days: 7
+
+  docker-build:
+    runs-on: ubuntu-latest
+    name: Build Docker Images
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: false
+        tags: az-spring-app-demo:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    name: Deploy to Azure Spring Apps (Staging)
+    needs: [test, build]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: jar-artifacts
+        
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Deploy to Azure Spring Apps
+      run: |
+        # Install Azure Spring Apps CLI extension
+        az extension add --name spring --upgrade
+        
+        # Deploy each service
+        services=("eureka-server" "config-server" "gateway-service" "user-service" "product-service" "order-service")
+        
+        for service in "${services[@]}"; do
+          echo "Deploying $service to staging..."
+          az spring app deploy \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }}-staging \
+            --service ${{ env.AZURE_SPRING_APPS_SERVICE }}-staging \
+            --name $service \
+            --artifact-path $service/target/$service-1.0.0.jar \
+            --env SPRING_PROFILES_ACTIVE=staging
+        done
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    name: Deploy to Azure Spring Apps (Production)
+    needs: [test, build]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: jar-artifacts
+        
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Deploy to Azure Spring Apps
+      run: |
+        # Install Azure Spring Apps CLI extension
+        az extension add --name spring --upgrade
+        
+        # Deploy each service
+        services=("eureka-server" "config-server" "gateway-service" "user-service" "product-service" "order-service")
+        
+        for service in "${services[@]}"; do
+          echo "Deploying $service to production..."
+          az spring app deploy \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --service ${{ env.AZURE_SPRING_APPS_SERVICE }} \
+            --name $service \
+            --artifact-path $service/target/$service-1.0.0.jar \
+            --env SPRING_PROFILES_ACTIVE=azure
+        done
+        
+    - name: Run smoke tests
+      run: |
+        # Wait for deployment to complete
+        sleep 60
+        
+        # Get gateway URL
+        GATEWAY_URL=$(az spring app show \
+          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          --service ${{ env.AZURE_SPRING_APPS_SERVICE }} \
+          --name gateway-service \
+          --query "properties.url" \
+          --output tsv)
+        
+        # Basic health checks
+        echo "Running smoke tests against $GATEWAY_URL"
+        
+        # Test gateway health
+        curl -f "$GATEWAY_URL/actuator/health" || exit 1
+        
+        # Test API endpoints
+        curl -f "$GATEWAY_URL/api/users/health" || exit 1
+        curl -f "$GATEWAY_URL/api/products/health" || exit 1
+        curl -f "$GATEWAY_URL/api/orders/health" || exit 1
+        
+        echo "✅ Smoke tests passed!"
