@@ -207,15 +207,58 @@ The project includes:
 - Entity relationships and cascading
 - Repository pattern implementation
 
-## 🚀 Azure Spring Apps Deployment
+## 🚀 Deployment Options
 
-This demo is designed to deploy seamlessly to Azure Spring Apps:
+### Azure Spring Apps
+Deploy to fully managed Spring Boot platform:
+```bash
+# Deploy using Azure CLI
+az spring app deploy --resource-group rg-name --service spring-service-name --name app-name --artifact-path target/app.jar
 
-1. **Build Configuration**: Maven-based builds compatible with Azure Spring Apps
-2. **Service Discovery**: Eureka configuration works with Azure Spring Apps service registry
-3. **Configuration**: Supports Azure Key Vault integration for production secrets
-4. **Monitoring**: Ready for Azure Application Insights integration
-5. **Scaling**: Designed for horizontal scaling in Azure environment
+# Or use the provided GitHub Actions pipeline
+git push origin main  # Triggers automatic deployment
+```
+
+### Azure Kubernetes Service (AKS)
+Deploy to Kubernetes with full container orchestration:
+```bash
+# Build and push images
+mvn clean package -DskipTests
+docker build -t azspringappdemo.azurecr.io/service-name:latest service/
+docker push azspringappdemo.azurecr.io/service-name:latest
+
+# Deploy to Kubernetes
+kubectl apply -f k8s/base/
+```
+
+### Local Development with Azure Services
+Run locally while connecting to Azure services:
+```bash
+# Set Azure profile
+export SPRING_PROFILES_ACTIVE=azure
+export AZURE_KEYVAULT_ENDPOINT=https://your-keyvault.vault.azure.net/
+export APPLICATIONINSIGHTS_CONNECTION_STRING=InstrumentationKey=your-key
+
+# Run services
+mvn spring-boot:run
+```
+
+## 📚 Documentation
+
+- **[Azure Integrations Guide](docs/azure-integrations.md)** - Complete Azure services integration
+- **[Kubernetes Deployment Guide](docs/kubernetes-deployment.md)** - Kubernetes deployment instructions  
+- **[Architecture Overview](docs/architecture.md)** - System architecture and design
+
+## 🔧 Configuration Profiles
+
+The application supports multiple configuration profiles:
+
+| Profile | Description | Use Case |
+|---------|-------------|----------|
+| `default` | Local development with H2 database | Development |
+| `docker` | Docker Compose deployment | Local testing |
+| `azure` | Azure Spring Apps deployment | Production Azure |
+| `k8s` | Kubernetes deployment | Production Kubernetes |
 
 ## 📁 Project Structure
 
@@ -256,17 +299,40 @@ docker-compose down
 docker-compose logs -f [service-name]
 ```
 
-## 🎯 Future Enhancements
+## 🎯 Azure Cloud Integrations
 
-This demo provides a foundation for implementing:
+This demo now includes comprehensive Azure cloud integrations:
 
-- **Azure Key Vault** integration for secrets management
-- **Azure Application Insights** for distributed tracing
-- **Azure Service Bus** for asynchronous messaging
-- **Azure Database** for production data storage
-- **Azure Container Registry** for container management
-- **GitHub Actions** CI/CD pipeline
-- **Kubernetes** deployment manifests
+### ☁️ Implemented Azure Services
+
+- **✅ Azure Key Vault** integration for secrets management
+- **✅ Azure Application Insights** for distributed tracing and monitoring
+- **✅ Azure Service Bus** for asynchronous messaging
+- **✅ Azure Database for PostgreSQL** for production data storage
+- **✅ Azure Container Registry** for container management
+- **✅ GitHub Actions CI/CD** pipeline with Azure deployment
+- **✅ Kubernetes deployment** manifests for AKS
+
+### 🏗️ Infrastructure as Code
+
+- **Azure ARM Templates**: Complete infrastructure provisioning
+- **Kubernetes Manifests**: Container orchestration and deployment
+- **Docker Configurations**: Optimized container images with Application Insights
+- **CI/CD Pipelines**: Automated build, test, and deployment
+
+### 📊 Enhanced Monitoring
+
+- **Application Insights**: Distributed tracing across all microservices
+- **Custom Metrics**: Business and technical metrics collection
+- **Health Checks**: Comprehensive health monitoring
+- **Structured Logging**: Correlated logging with trace IDs
+
+### 🔐 Security Features
+
+- **Azure Key Vault**: Centralized secrets management
+- **Managed Identities**: Secure authentication to Azure services
+- **Network Security**: VNet integration and security groups
+- **Container Security**: Non-root containers and security contexts
 
 ## 📝 Contributing
 
