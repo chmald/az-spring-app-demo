@@ -1,0 +1,40 @@
+# Ignore target directories and build artifacts
+**/target/
+*.jar
+*.war
+*.class
+
+# Ignore IDE files
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore temporary files
+*.tmp
+*.temp
+*.log
+
+# Ignore node_modules if any exist
+node_modules/
+
+# Ignore environment specific files
+.env
+.env.local
+.env.*.local
+
+# Ignore Azure CLI files
+.azure/
+
+# Keep source code and configuration
+!src/
+!pom.xml
+!Dockerfile
+!*.yml
+!*.yaml
+!*.md

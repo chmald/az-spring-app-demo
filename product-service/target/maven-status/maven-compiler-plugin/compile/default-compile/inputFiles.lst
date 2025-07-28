@@ -1,5 +1,5 @@
-/home/runner/work/az-spring-app-demo/az-spring-app-demo/product-service/src/main/java/com/azure/demo/productservice/ProductServiceApplication.java
-/home/runner/work/az-spring-app-demo/az-spring-app-demo/product-service/src/main/java/com/azure/demo/productservice/controller/ProductController.java
-/home/runner/work/az-spring-app-demo/az-spring-app-demo/product-service/src/main/java/com/azure/demo/productservice/service/ProductService.java
-/home/runner/work/az-spring-app-demo/az-spring-app-demo/product-service/src/main/java/com/azure/demo/productservice/model/Product.java
-/home/runner/work/az-spring-app-demo/az-spring-app-demo/product-service/src/main/java/com/azure/demo/productservice/repository/ProductRepository.java
+C:\Users\chmald\source\repos\az-spring-app-demo\product-service\src\main\java\com\azure\demo\productservice\controller\ProductController.java
+C:\Users\chmald\source\repos\az-spring-app-demo\product-service\src\main\java\com\azure\demo\productservice\model\Product.java
+C:\Users\chmald\source\repos\az-spring-app-demo\product-service\src\main\java\com\azure\demo\productservice\repository\ProductRepository.java
+C:\Users\chmald\source\repos\az-spring-app-demo\product-service\src\main\java\com\azure\demo\productservice\service\ProductService.java
+C:\Users\chmald\source\repos\az-spring-app-demo\product-service\src\main\java\com\azure\demo\productservice\ProductServiceApplication.java

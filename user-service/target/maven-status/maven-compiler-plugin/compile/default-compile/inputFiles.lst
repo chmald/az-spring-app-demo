@@ -1,5 +1,5 @@
-/home/runner/work/az-spring-app-demo/az-spring-app-demo/user-service/src/main/java/com/azure/demo/userservice/controller/UserController.java
-/home/runner/work/az-spring-app-demo/az-spring-app-demo/user-service/src/main/java/com/azure/demo/userservice/UserServiceApplication.java
-/home/runner/work/az-spring-app-demo/az-spring-app-demo/user-service/src/main/java/com/azure/demo/userservice/repository/UserRepository.java
-/home/runner/work/az-spring-app-demo/az-spring-app-demo/user-service/src/main/java/com/azure/demo/userservice/model/User.java
-/home/runner/work/az-spring-app-demo/az-spring-app-demo/user-service/src/main/java/com/azure/demo/userservice/service/UserService.java
+C:\Users\chmald\source\repos\az-spring-app-demo\user-service\src\main\java\com\azure\demo\userservice\UserServiceApplication.java
+C:\Users\chmald\source\repos\az-spring-app-demo\user-service\src\main\java\com\azure\demo\userservice\model\User.java
+C:\Users\chmald\source\repos\az-spring-app-demo\user-service\src\main\java\com\azure\demo\userservice\controller\UserController.java
+C:\Users\chmald\source\repos\az-spring-app-demo\user-service\src\main\java\com\azure\demo\userservice\repository\UserRepository.java
+C:\Users\chmald\source\repos\az-spring-app-demo\user-service\src\main\java\com\azure\demo\userservice\service\UserService.java

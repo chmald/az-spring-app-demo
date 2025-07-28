@@ -1,5 +1,5 @@
-com/azure/demo/productservice/repository/ProductRepository.class
-com/azure/demo/productservice/controller/ProductController.class
-com/azure/demo/productservice/ProductServiceApplication.class
-com/azure/demo/productservice/model/Product.class
-com/azure/demo/productservice/service/ProductService.class
+com\azure\demo\productservice\controller\ProductController.class
+com\azure\demo\productservice\model\Product.class
+com\azure\demo\productservice\service\ProductService.class
+com\azure\demo\productservice\ProductServiceApplication.class
+com\azure\demo\productservice\repository\ProductRepository.class

@@ -1,8 +1,12 @@
 # Azure Spring Apps Demo
 
-A comprehensive demonstration of Azure Spring Apps with microservices architecture, featuring service discovery with Eureka, centralized configuration management, API Gateway, and inter-service communication.
-
-## 🏗️ Architecture Overview
+A comprehensive demonstration of Azure Spring Apps with microservices architecture, featuring service discovery with Eureka, centralized configuration management, API Gateway, and inter-service communication.### ✅ Infrastructure Security**
+- Bicep template with latest API versions
+- Parameterized configuration without hardcoded secrets
+- Resource group isolation
+- Managed service updates
+- Configuration Service with Git-based settings
+- Application Insights APM integration## 🏗️ Architecture Overview
 
 This demo showcases a complete microservices ecosystem with the following components:
 
@@ -29,16 +33,16 @@ This project originally had two ARM templates:
 - **Basic Template**: Just Azure Spring Apps with minimal configuration
 - **Enhanced Template**: Full production setup with monitoring, databases, and security
 
-**🎯 We've consolidated into a single production-ready template** (`spring-apps-template.json`) that includes:
+**🎯 We've consolidated into a single production-ready Bicep template** (`infra/main.bicep`) that includes:
 
 ### ✅ Included Production Features
 - **Azure Spring Apps Service** (Standard tier)
-- **Application Insights** with distributed tracing
+- **Application Insights** with distributed tracing via APM integration
 - **Log Analytics Workspace** for centralized logging  
 - **Azure Database for PostgreSQL** (Flexible Server)
   - Separate databases: `userdb`, `productdb`, `orderdb`
   - Automated connection string configuration
-- **Git-based Configuration Server**
+- **Configuration Service** with Git-based configuration management
 - **Environment-specific profiles** (azure profile activated)
 - **Security best practices** with parameterized passwords
 - **Cost-optimized resource sizing** for demos
@@ -49,11 +53,32 @@ This project originally had two ARM templates:
 - Azure Service Bus (for advanced messaging scenarios)
 - Additional networking and VNet integration
 
-**Why This Approach?**
-- Single template for most production scenarios
-- Reduced complexity while maintaining enterprise features
-- Easy to extend with additional Azure services when needed
-- Clear upgrade path from basic to advanced features
+**Why Bicep over ARM?**
+- **Cleaner syntax**: More readable and maintainable than JSON
+- **Type safety**: Better IntelliSense and validation
+- **Simplified expressions**: No need for complex ARM template functions
+- **Automatic dependency management**: Bicep handles resource dependencies
+- **Latest Azure features**: Access to newest API versions and features
+
+## 🎯 Key Bicep Template Features
+
+### Modern Azure Spring Apps Architecture
+The Bicep template uses the latest Azure Spring Apps API (2023-12-01) with:
+
+- **Separate Configuration Service**: Dedicated resource for centralized config management
+- **Application Performance Monitoring**: Native Application Insights integration via APM
+- **Enhanced Security**: Latest security practices and resource isolation
+- **Type Safety**: Compile-time validation and IntelliSense support
+
+### Resource Organization
+```
+├── infra/
+│   ├── main.bicep              # Main Bicep template
+│   └── main.parameters.json    # Deployment parameters
+└── infrastructure/azure/        # Legacy ARM templates (for reference)
+    ├── spring-apps-template.json
+    └── spring-apps-template.parameters.json
+```
 
 ## 🚀 Deployment to Azure (Production-Ready)
 
@@ -101,53 +126,156 @@ mvn clean package -DskipTests
 
 ### Step 2: Deploy Azure Infrastructure
 
-#### Manual Azure CLI Deployment
+#### Option 1: Azure Developer CLI (Easiest)
+
+1. **Install Azure Developer CLI**
+   ```bash
+   # Install azd (Azure Developer CLI)
+   # Visit: https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/install-azd
+   
+   # Verify installation
+   azd version
+   ```
+
+2. **Initialize and Deploy**
+   ```bash
+   # Login to Azure
+   azd auth login
+   
+   # Initialize the project (if not already done)
+   azd init
+   
+   # Provision infrastructure and deploy applications
+   azd up
+   ```
+
+#### Option 2: Bicep with Azure CLI
 
 1. **Create Resource Group**
    ```bash
    az group create --name "az-spring-app-demo-rg" --location "westus2"
    ```
 
-2. **Deploy Infrastructure Template**
+2. **Deploy Infrastructure with Bicep**
    ```bash
-   az deployment group create --resource-group "az-spring-app-demo-rg" --template-file "infrastructure/azure/spring-apps-template.json" --parameters springAppsServiceName="az-spring-app-demo" location="westus2" databaseAdministratorPassword="YourSecurePassword123!"
+   # Validate the Bicep template first
+   az bicep build --file infra/main.bicep
+   
+   # Preview what will be deployed
+   az deployment group what-if \
+     --resource-group "az-spring-app-demo-rg" \
+     --template-file "infra/main.bicep" \
+     --parameters springAppsServiceName="az-spring-app-demo" \
+                  location="westus2" \
+                  databaseAdministratorPassword="YourSecurePassword123!"
+   
+   # Deploy the infrastructure
+   az deployment group create \
+     --resource-group "az-spring-app-demo-rg" \
+     --template-file "infra/main.bicep" \
+     --parameters springAppsServiceName="az-spring-app-demo" \
+                  location="westus2" \
+                  databaseAdministratorPassword="YourSecurePassword123!"
    ```
 
    **Alternative: Using Parameters File**
    ```bash
-   az deployment group create --resource-group "az-spring-app-demo-rg" --template-file "infrastructure/azure/spring-apps-template.json" --parameters "@infrastructure/azure/spring-apps-template.parameters.json"
+   # First, update the password in infra/main.parameters.json
+   az deployment group create \
+     --resource-group "az-spring-app-demo-rg" \
+     --template-file "infra/main.bicep" \
+     --parameters "@infra/main.parameters.json"
    ```
 
-3. **Deploy Applications**
+#### Legacy ARM Template (Alternative)
+
+For compatibility, you can still use the ARM template:
    ```bash
-   az spring app deploy --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "eureka-server" --artifact-path "eureka-server/target/eureka-server-1.0.0.jar" --jvm-options="-Xms1024m -Xmx1024m" --env SPRING_PROFILES_ACTIVE=azure
-   ```
-   ```bash
-   az spring app deploy --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "config-server" --artifact-path "config-server/target/config-server-1.0.0.jar" --jvm-options="-Xms1024m -Xmx1024m" --env SPRING_PROFILES_ACTIVE=azure
-   ```
-   ```bash
-   az spring app deploy --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "gateway-service" --artifact-path "gateway-service/target/gateway-service-1.0.0.jar" --jvm-options="-Xms1024m -Xmx1024m" --env SPRING_PROFILES_ACTIVE=azure
-   ```
-   ```bash
-   az spring app deploy --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "user-service" --artifact-path "user-service/target/user-service-1.0.0.jar" --jvm-options="-Xms1024m -Xmx1024m" --env SPRING_PROFILES_ACTIVE=azure
-   ```
-   ```bash
-   az spring app deploy --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "product-service" --artifact-path "product-service/target/product-service-1.0.0.jar" --jvm-options="-Xms1024m -Xmx1024m" --env SPRING_PROFILES_ACTIVE=azure
-   ```
-   ```bash
-   az spring app deploy --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "order-service" --artifact-path "order-service/target/order-service-1.0.0.jar" --jvm-options="-Xms1024m -Xmx1024m" --env SPRING_PROFILES_ACTIVE=azure
+   az deployment group create \
+     --resource-group "az-spring-app-demo-rg" \
+     --template-file "infrastructure/azure/spring-apps-template.json" \
+     --parameters "@infrastructure/azure/spring-apps-template.parameters.json"
    ```
 
-4. **Configure Public Endpoint**
+### Step 3: Deploy Applications (Manual Method)
+
+**Note**: If you used `azd up`, applications are automatically deployed. The following steps are only needed for manual Bicep/ARM deployments.
+
+1. **Build Applications**
    ```bash
-   az spring app update --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "gateway-service" --assign-endpoint true
+   mvn clean package -DskipTests
+   ```
+2. **Deploy Each Application**
+   ```bash
+   az spring app deploy \
+     --resource-group "az-spring-app-demo-rg" \
+     --service "az-spring-app-demo" \
+     --name "eureka-server" \
+     --artifact-path "eureka-server/target/eureka-server-1.0.0.jar" \
+     --jvm-options="-Xms1024m -Xmx1024m" \
+     --env SPRING_PROFILES_ACTIVE=azure
+   ```
+   ```bash
+   az spring app deploy \
+     --resource-group "az-spring-app-demo-rg" \
+     --service "az-spring-app-demo" \
+     --name "config-server" \
+     --artifact-path "config-server/target/config-server-1.0.0.jar" \
+     --jvm-options="-Xms1024m -Xmx1024m" \
+     --env SPRING_PROFILES_ACTIVE=azure
+   
+   az spring app deploy \
+     --resource-group "az-spring-app-demo-rg" \
+     --service "az-spring-app-demo" \
+     --name "gateway-service" \
+     --artifact-path "gateway-service/target/gateway-service-1.0.0.jar" \
+     --jvm-options="-Xms1024m -Xmx1024m" \
+     --env SPRING_PROFILES_ACTIVE=azure
+   
+   az spring app deploy \
+     --resource-group "az-spring-app-demo-rg" \
+     --service "az-spring-app-demo" \
+     --name "user-service" \
+     --artifact-path "user-service/target/user-service-1.0.0.jar" \
+     --jvm-options="-Xms1024m -Xmx1024m" \
+     --env SPRING_PROFILES_ACTIVE=azure
+   
+   az spring app deploy \
+     --resource-group "az-spring-app-demo-rg" \
+     --service "az-spring-app-demo" \
+     --name "product-service" \
+     --artifact-path "product-service/target/product-service-1.0.0.jar" \
+     --jvm-options="-Xms1024m -Xmx1024m" \
+     --env SPRING_PROFILES_ACTIVE=azure
+   
+   az spring app deploy \
+     --resource-group "az-spring-app-demo-rg" \
+     --service "az-spring-app-demo" \
+     --name "order-service" \
+     --artifact-path "order-service/target/order-service-1.0.0.jar" \
+     --jvm-options="-Xms1024m -Xmx1024m" \
+     --env SPRING_PROFILES_ACTIVE=azure
    ```
 
-### Step 3: Verify Deployment
+3. **Configure Public Endpoint**
+   ```bash
+   az spring app update \
+     --resource-group "az-spring-app-demo-rg" \
+     --service "az-spring-app-demo" \
+     --name "gateway-service" \
+     --assign-endpoint true
+   ```
+
+### Step 4: Verify Deployment
 
 1. **Get Gateway URL**
    ```bash
-   az spring app show --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "gateway-service" --query "properties.url" --output tsv
+   az spring app show \
+     --resource-group "az-spring-app-demo-rg" \
+     --service "az-spring-app-demo" \
+     --name "gateway-service" \
+     --query "properties.url" \
+     --output tsv
    ```
 
 2. **Test API Endpoints**
@@ -215,22 +343,43 @@ The template automatically configures the following environment variables for pr
 
 ### Common Deployment Issues
 
-**ERROR: Problem: "Resource 'Microsoft.AppPlatform/Spring' was disallowed by policy"**
+**ERROR: Bicep compilation failed**
+```bash
+# Validate Bicep syntax and compile
+az bicep build --file infra/main.bicep
+
+# Check for Bicep CLI updates
+az bicep upgrade
+```
+
+**ERROR: "Resource 'Microsoft.AppPlatform/Spring' was disallowed by policy"**
 ```bash
 az provider register --namespace Microsoft.AppPlatform --wait
 ```
 
-**ERROR: Problem: "Database connection failed"**
+**ERROR: "Database connection failed"**
 ```bash
-az postgres flexible-server firewall-rule create --resource-group "az-spring-app-demo-rg" --name "allowAzureServices" --rule-name "AllowAllWindowsAzureIps" --start-ip-address "0.0.0.0" --end-ip-address "0.0.0.0"
+az postgres flexible-server firewall-rule create \
+  --resource-group "az-spring-app-demo-rg" \
+  --name "allowAzureServices" \
+  --rule-name "AllowAllWindowsAzureIps" \
+  --start-ip-address "0.0.0.0" \
+  --end-ip-address "0.0.0.0"
 ```
 
-**ERROR: Problem: "Application startup timeout"**
+**ERROR: "Application startup timeout"**
 ```bash
-az spring app logs --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "user-service" --follow
-```
-```bash
-az spring app update --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "user-service" --memory "3Gi"
+az spring app logs \
+  --resource-group "az-spring-app-demo-rg" \
+  --service "az-spring-app-demo" \
+  --name "user-service" \
+  --follow
+
+az spring app update \
+  --resource-group "az-spring-app-demo-rg" \
+  --service "az-spring-app-demo" \
+  --name "user-service" \
+  --memory "3Gi"
 ```
 
 **ERROR: Problem: "Maven build fails"**
@@ -571,8 +720,11 @@ This demo now includes comprehensive Azure cloud integrations:
 
 ### 🏗️ Infrastructure as Code
 
-- **Azure ARM Templates**: Complete infrastructure provisioning
-- **Kubernetes Manifests**: Container orchestration and deployment
+This project uses modern Infrastructure as Code practices:
+
+- **Bicep Templates**: Modern, type-safe infrastructure definitions in `infra/`
+- **ARM Templates**: Legacy JSON templates in `infrastructure/azure/` (for compatibility)
+- **Kubernetes Manifests**: Container orchestration and deployment in `k8s/`
 - **Docker Configurations**: Optimized container images with Application Insights
 - **CI/CD Pipelines**: Automated build, test, and deployment
 

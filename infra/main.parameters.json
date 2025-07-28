@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": {
+      "value": "${AZURE_ENV_NAME}"
+    },
+    "location": {
+      "value": "${AZURE_LOCATION}"
+    },
+    "databaseServerName": {
+      "value": "az-demo-dbserver-${AZURE_ENV_NAME}"
+    },
+    "databaseAdministratorLogin": {
+      "value": "azureadmin"
+    },
+    "databaseAdministratorPassword": {
+      "value": "${DATABASE_PASSWORD}"
+    },
+    "springProfilesActive": {
+      "value": "azure"
+    },
+    "eurekaClientRegisterWithEureka": {
+      "value": "false"
+    },
+    "eurekaClientFetchRegistry": {
+      "value": "false"
+    },
+    "springCloudConfigServerGitUri": {
+      "value": "https://github.com/chmald/az-spring-app-demo-config"
+    }
+  }
+}

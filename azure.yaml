@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: az-spring-app-demo
+metadata:
+  template: az-spring-app-demo@0.0.1-beta
+infra:
+  provider: bicep
+  path: infra
+services:
+  eureka-server:
+    project: eureka-server
+    host: containerapp
+    language: java
+    docker:
+      path: ../Dockerfile
+      context: ..
+  config-server:
+    project: config-server
+    host: containerapp
+    language: java
+    docker:
+      path: ../Dockerfile
+      context: ..
+  gateway-service:
+    project: gateway-service
+    host: containerapp
+    language: java
+    docker:
+      path: ../Dockerfile
+      context: ..
+  user-service:
+    project: user-service
+    host: containerapp
+    language: java
+    docker:
+      path: ../Dockerfile
+      context: ..
+  product-service:
+    project: product-service
+    host: containerapp
+    language: java
+    docker:
+      path: ../Dockerfile
+      context: ..
+  order-service:
+    project: order-service
+    host: containerapp
+    language: java
+    docker:
+      path: ../Dockerfile
+      context: ..
