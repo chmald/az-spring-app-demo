@@ -1,4 +1,4 @@
-FROM openjdk:17-jre-slim
+FROM eclipse-temurin:17-jre-noble
 
 # Create a non-root user
 RUN groupadd -r spring && useradd -r -g spring spring

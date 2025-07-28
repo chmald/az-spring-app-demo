@@ -82,9 +82,27 @@ The Bicep template uses the latest Azure Spring Apps API (2023-12-01) with:
 
 ## 🚀 Deployment to Azure (Production-Ready)
 
+> **✨ Modern Deployment Approach**: This project now uses **Azure Container Apps** with **Azure Developer CLI (azd)** for streamlined, cost-effective deployment. The setup has been validated and optimized for azd compatibility.
+
+### Key Deployment Features:
+- ✅ **One-command deployment** with `azd up`
+- ✅ **Container Apps** for modern, serverless container hosting
+- ✅ **Individual Dockerfiles** per service for better isolation
+- ✅ **Automated CI/CD** with infrastructure provisioning
+- ✅ **Cost-optimized** compared to Azure Spring Apps
+- ✅ **Production-ready** with monitoring, logging, and security
+
 ### Prerequisites
 
-1. **Azure CLI** (latest version)
+1. **Azure Developer CLI (azd)** - Recommended approach
+   ```bash
+   # Install Azure Developer CLI
+   # Windows: Download from https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/install-azd
+   # Verify installation
+   azd version
+   ```
+
+2. **Azure CLI** (latest version)
    ```bash
    # Install Azure CLI
    # Windows: Download from https://aka.ms/installazurecliwindows
@@ -92,10 +110,17 @@ The Bicep template uses the latest Azure Spring Apps API (2023-12-01) with:
    az --version
    ```
 
-2. **Azure Subscription** with appropriate permissions
+3. **Docker** for containerized deployment
+   ```bash
+   # Verify Docker installation
+   docker version
+   ```
+
+4. **Azure Subscription** with appropriate permissions
    ```bash
    # Login to Azure
    az login
+   azd auth login
    
    # Set subscription (if you have multiple)
    az account set --subscription "your-subscription-id"
@@ -104,52 +129,51 @@ The Bicep template uses the latest Azure Spring Apps API (2023-12-01) with:
    az account show
    ```
 
-3. **Java 17 and Maven** for building applications
-   ```bash
-   # Verify Java version
-   java -version
-   
-   # Verify Maven
-   mvn --version
-   ```
-
 ### Step 1: Clone and Prepare the Repository
 
 ```bash
 # Clone the repository
 git clone https://github.com/chmald/az-spring-app-demo.git
 cd az-spring-app-demo
-
-# Build all applications
-mvn clean package -DskipTests
 ```
+
+**Note**: This project uses individual Dockerfiles for each service rather than Maven builds. The containerized approach provides better deployment consistency and isolation.
 
 ### Step 2: Deploy Azure Infrastructure
 
-#### Option 1: Azure Developer CLI (Easiest)
+#### Option 1: Azure Developer CLI (Recommended)
 
-1. **Install Azure Developer CLI**
-   ```bash
-   # Install azd (Azure Developer CLI)
-   # Visit: https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/install-azd
-   
-   # Verify installation
-   azd version
-   ```
+The easiest and most modern approach using Azure Developer CLI:
 
-2. **Initialize and Deploy**
+1. **Initialize and Deploy**
    ```bash
-   # Login to Azure
-   azd auth login
-   
    # Initialize the project (if not already done)
    azd init
    
-   # Provision infrastructure and deploy applications
+   # Provision infrastructure and deploy applications in one command
    azd up
    ```
 
-#### Option 2: Bicep with Azure CLI
+   This single command will:
+   - ✅ Create all Azure resources (Container Apps, PostgreSQL, Log Analytics, etc.)
+   - ✅ Build Docker images for each microservice
+   - ✅ Push images to Azure Container Registry
+   - ✅ Deploy all services to Azure Container Apps
+   - ✅ Configure networking and security
+   - ✅ Set up monitoring and logging
+
+2. **Monitor Deployment**
+   ```bash
+   # View deployment logs
+   azd logs
+   
+   # Check service status
+   azd show
+   ```
+
+#### Option 2: Bicep with Azure CLI (Manual)
+
+For more control over the deployment process:
 
 1. **Create Resource Group**
    ```bash
@@ -165,7 +189,7 @@ mvn clean package -DskipTests
    az deployment group what-if \
      --resource-group "az-spring-app-demo-rg" \
      --template-file "infra/main.bicep" \
-     --parameters springAppsServiceName="az-spring-app-demo" \
+     --parameters environmentName="demo" \
                   location="westus2" \
                   databaseAdministratorPassword="YourSecurePassword123!"
    
@@ -173,7 +197,7 @@ mvn clean package -DskipTests
    az deployment group create \
      --resource-group "az-spring-app-demo-rg" \
      --template-file "infra/main.bicep" \
-     --parameters springAppsServiceName="az-spring-app-demo" \
+     --parameters environmentName="demo" \
                   location="westus2" \
                   databaseAdministratorPassword="YourSecurePassword123!"
    ```
@@ -187,113 +211,50 @@ mvn clean package -DskipTests
      --parameters "@infra/main.parameters.json"
    ```
 
-#### Legacy ARM Template (Alternative)
+**Note**: The Bicep template creates Container Apps instead of Azure Spring Apps for better cost efficiency and modern containerized deployment.
 
-For compatibility, you can still use the ARM template:
-   ```bash
-   az deployment group create \
-     --resource-group "az-spring-app-demo-rg" \
-     --template-file "infrastructure/azure/spring-apps-template.json" \
-     --parameters "@infrastructure/azure/spring-apps-template.parameters.json"
-   ```
+### Step 3: Verify Deployment
 
-### Step 3: Deploy Applications (Manual Method)
+**If you used `azd up`, your applications are automatically deployed and running!**
 
-**Note**: If you used `azd up`, applications are automatically deployed. The following steps are only needed for manual Bicep/ARM deployments.
-
-1. **Build Applications**
+1. **Get Service URLs**
    ```bash
-   mvn clean package -DskipTests
-   ```
-2. **Deploy Each Application**
-   ```bash
-   az spring app deploy \
-     --resource-group "az-spring-app-demo-rg" \
-     --service "az-spring-app-demo" \
-     --name "eureka-server" \
-     --artifact-path "eureka-server/target/eureka-server-1.0.0.jar" \
-     --jvm-options="-Xms1024m -Xmx1024m" \
-     --env SPRING_PROFILES_ACTIVE=azure
-   ```
-   ```bash
-   az spring app deploy \
-     --resource-group "az-spring-app-demo-rg" \
-     --service "az-spring-app-demo" \
-     --name "config-server" \
-     --artifact-path "config-server/target/config-server-1.0.0.jar" \
-     --jvm-options="-Xms1024m -Xmx1024m" \
-     --env SPRING_PROFILES_ACTIVE=azure
+   # Get all service endpoints
+   azd show --output json | jq '.services'
    
-   az spring app deploy \
-     --resource-group "az-spring-app-demo-rg" \
-     --service "az-spring-app-demo" \
-     --name "gateway-service" \
-     --artifact-path "gateway-service/target/gateway-service-1.0.0.jar" \
-     --jvm-options="-Xms1024m -Xmx1024m" \
-     --env SPRING_PROFILES_ACTIVE=azure
-   
-   az spring app deploy \
-     --resource-group "az-spring-app-demo-rg" \
-     --service "az-spring-app-demo" \
-     --name "user-service" \
-     --artifact-path "user-service/target/user-service-1.0.0.jar" \
-     --jvm-options="-Xms1024m -Xmx1024m" \
-     --env SPRING_PROFILES_ACTIVE=azure
-   
-   az spring app deploy \
-     --resource-group "az-spring-app-demo-rg" \
-     --service "az-spring-app-demo" \
-     --name "product-service" \
-     --artifact-path "product-service/target/product-service-1.0.0.jar" \
-     --jvm-options="-Xms1024m -Xmx1024m" \
-     --env SPRING_PROFILES_ACTIVE=azure
-   
-   az spring app deploy \
-     --resource-group "az-spring-app-demo-rg" \
-     --service "az-spring-app-demo" \
-     --name "order-service" \
-     --artifact-path "order-service/target/order-service-1.0.0.jar" \
-     --jvm-options="-Xms1024m -Xmx1024m" \
-     --env SPRING_PROFILES_ACTIVE=azure
-   ```
-
-3. **Configure Public Endpoint**
-   ```bash
-   az spring app update \
-     --resource-group "az-spring-app-demo-rg" \
-     --service "az-spring-app-demo" \
-     --name "gateway-service" \
-     --assign-endpoint true
-   ```
-
-### Step 4: Verify Deployment
-
-1. **Get Gateway URL**
-   ```bash
-   az spring app show \
-     --resource-group "az-spring-app-demo-rg" \
-     --service "az-spring-app-demo" \
-     --name "gateway-service" \
-     --query "properties.url" \
-     --output tsv
+   # Or get the gateway URL specifically
+   azd show --output table
    ```
 
 2. **Test API Endpoints**
    ```bash
-   curl https://YOUR_GATEWAY_URL/api/users
-   ```
-   ```bash
-   curl https://YOUR_GATEWAY_URL/api/products
-   ```
-   ```bash
-   curl https://YOUR_GATEWAY_URL/eureka/web
+   # Replace <gateway-url> with your actual gateway URL from azd show
+   curl https://<gateway-url>/api/users
+   curl https://<gateway-url>/api/products
+   curl https://<gateway-url>/eureka/web
    ```
 
 3. **Monitor in Azure Portal**
    - Navigate to your resource group in Azure Portal
-   - Open Azure Spring Apps service
+   - Open Container Apps Environment to see all running services
    - Check Application Insights for telemetry and performance data
    - Review logs in Log Analytics Workspace
+
+### Step 4: Application Management
+
+```bash
+# View application logs
+azd logs --service eureka-server
+
+# Monitor all services
+azd monitor
+
+# Update a specific service
+azd deploy --service user-service
+
+# Scale services (if needed)
+az containerapp update --name user-service --resource-group <rg-name> --min-replicas 2 --max-replicas 5
+```
 
 ### Environment Variables Configuration
 
@@ -310,34 +271,34 @@ The template automatically configures the following environment variables for pr
 ### Cost Considerations
 
 **Estimated Monthly Cost (West US 2 region):**
-- Azure Spring Apps (Standard): ~$50/month per app (6 apps = $300)
-- Azure Database for PostgreSQL (Burstable B1ms): ~$15/month
+- Azure Container Apps Environment: ~$5-10/month (shared environment)
+- Container Apps (6 services): ~$10-30/month per service (usage-based)
+- Azure Database for PostgreSQL (Flexible Server): ~$15-50/month
+- Azure Container Registry: ~$5/month (Basic tier)
 - Application Insights: ~$5-20/month (usage-based)
 - Log Analytics: ~$5-15/month (usage-based)
 
-**Total Estimated: $325-350/month**
+**Total Estimated: $100-200/month**
+
+*Significantly lower than Azure Spring Apps due to usage-based pricing of Container Apps*
 
 ### Security Best Practices Applied
 
 ✅ **Database Security**
-- PostgreSQL with strong password requirements
+- PostgreSQL Flexible Server with strong password requirements
 - Separate databases per microservice
-- Network security group restrictions
+- Private networking and security group restrictions
 
-✅ **Application Security**
+✅ **Container Security**
 - HTTPS-only communication
-- Environment-specific configuration
-- No hardcoded credentials
-
-✅ **Monitoring & Compliance**
-- Application Insights distributed tracing
-- Centralized logging with Log Analytics
-- Health check endpoints
+- Non-root container execution
+- Managed identities for Azure service authentication
+- Container registry with user-assigned managed identity access
 
 ✅ **Infrastructure Security**
-- ARM template with parameterized configuration
+- Bicep template with parameterized configuration
 - Resource group isolation
-- Managed service updates
+- No hardcoded credentials or connection strings
 
 ## 🛠️ Troubleshooting
 
@@ -352,39 +313,32 @@ az bicep build --file infra/main.bicep
 az bicep upgrade
 ```
 
-**ERROR: "Resource 'Microsoft.AppPlatform/Spring' was disallowed by policy"**
+**ERROR: "Resource provider not registered"**
 ```bash
-az provider register --namespace Microsoft.AppPlatform --wait
+az provider register --namespace Microsoft.ContainerRegistry --wait
+az provider register --namespace Microsoft.App --wait
+az provider register --namespace Microsoft.OperationalInsights --wait
 ```
 
-**ERROR: "Database connection failed"**
+**ERROR: "azd up fails during deployment"**
 ```bash
-az postgres flexible-server firewall-rule create \
-  --resource-group "az-spring-app-demo-rg" \
-  --name "allowAzureServices" \
-  --rule-name "AllowAllWindowsAzureIps" \
-  --start-ip-address "0.0.0.0" \
-  --end-ip-address "0.0.0.0"
+# Check azd logs for detailed error information
+azd logs
+
+# Verify Docker is running
+docker version
+
+# Check authentication
+azd auth login --check-status
 ```
 
-**ERROR: "Application startup timeout"**
+**ERROR: "Container app startup timeout"**
 ```bash
-az spring app logs \
-  --resource-group "az-spring-app-demo-rg" \
-  --service "az-spring-app-demo" \
-  --name "user-service" \
-  --follow
+# Check container logs
+az containerapp logs show --name user-service --resource-group <rg-name>
 
-az spring app update \
-  --resource-group "az-spring-app-demo-rg" \
-  --service "az-spring-app-demo" \
-  --name "user-service" \
-  --memory "3Gi"
-```
-
-**ERROR: Problem: "Maven build fails"**
-```bash
-mvn clean install -DskipTests
+# Monitor real-time logs
+azd logs --service user-service --follow
 ```
 
 ### Monitoring and Diagnostics
@@ -397,15 +351,21 @@ mvn clean install -DskipTests
 
 **Access Logs**
 ```bash
-az spring app logs --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "gateway-service" --follow
+# Using azd (recommended)
+azd logs --service gateway-service --follow
+
+# Using Azure CLI
+az containerapp logs show --name gateway-service --resource-group <rg-name> --follow
 ```
 
 **Health Checks**
 ```bash
-curl https://YOUR_GATEWAY_URL/actuator/health
-```
-```bash
-curl https://YOUR_GATEWAY_URL/eureka/apps
+# Get service URLs first
+azd show
+
+# Then test health endpoints
+curl https://<gateway-url>/actuator/health
+curl https://<eureka-url>/actuator/health
 ```
 
 ### Cleanup Resources
@@ -413,12 +373,11 @@ curl https://YOUR_GATEWAY_URL/eureka/apps
 **WARNING: This will delete all deployed resources and data**
 
 ```bash
-az group delete --name "az-spring-app-demo-rg" --yes --no-wait
-```
+# Using azd (recommended)
+azd down --purge
 
-**Or delete specific resources**
-```bash
-az spring delete --resource-group "az-spring-app-demo-rg" --name "az-spring-app-demo"
+# Or using Azure CLI
+az group delete --name "az-spring-app-demo-rg" --yes --no-wait
 ```
 
 ## 🚀 Local Development Setup
@@ -476,7 +435,7 @@ az spring delete --resource-group "az-spring-app-demo-rg" --name "az-spring-app-
 
 ## 📋 API Documentation
 
-### Gateway Service (http://localhost:8080)
+### Gateway Service (Local: http://localhost:8080, Azure: provided by azd show)
 All microservices are accessible through the API Gateway:
 
 - **Users API**: `GET/POST/PUT/DELETE /api/users/**`
@@ -550,7 +509,8 @@ curl -X PATCH "http://localhost:8080/api/orders/1/status?status=CONFIRMED"
 The Config Server supports external configuration management:
 
 - **Default Profile**: Uses classpath-based configuration
-- **Git Profile**: Configured to use external Git repository for configurations
+- **Docker Profile**: Configured for container deployment
+- **Azure Profile**: Optimized for Azure Container Apps deployment
 - **Environment-specific**: Supports dev, staging, and production profiles
 
 ## 🏥 Health Checks and Monitoring
@@ -563,7 +523,8 @@ All services expose actuator endpoints:
 - **Gateway Routes**: `/actuator/gateway/routes` (Gateway Service only)
 
 ### Service Discovery Dashboard
-Access the Eureka dashboard at: http://localhost:8761
+- **Local**: http://localhost:8761
+- **Azure**: Access via the Eureka service URL from `azd show`
 
 ## 🐳 Docker Configuration
 
@@ -614,14 +575,22 @@ The project includes:
 
 ## 🚀 Deployment Options
 
-### Azure Spring Apps
+### Azure Container Apps (Primary)
+Deploy to fully managed container platform with azd:
+```bash
+# One-command deployment
+azd up
+
+# Or step by step
+azd provision  # Create infrastructure
+azd deploy     # Deploy applications
+```
+
+### Azure Spring Apps (Alternative)
 Deploy to fully managed Spring Boot platform:
 ```bash
-# Deploy using Azure CLI
+# Requires switching to Azure Spring Apps Bicep template
 az spring app deploy --resource-group rg-name --service spring-service-name --name app-name --artifact-path target/app.jar
-
-# Or use the provided GitHub Actions pipeline
-git push origin main  # Triggers automatic deployment
 ```
 
 ### Azure Kubernetes Service (AKS)
@@ -661,8 +630,8 @@ The application supports multiple configuration profiles:
 | Profile | Description | Use Case |
 |---------|-------------|----------|
 | `default` | Local development with H2 database | Development |
-| `docker` | Docker Compose deployment | Local testing |
-| `azure` | Azure Spring Apps deployment | Production Azure |
+| `docker` | Docker Compose deployment | Local container testing |
+| `azure` | Azure Container Apps deployment | Production Azure |
 | `k8s` | Kubernetes deployment | Production Kubernetes |
 
 ## 📁 Project Structure
