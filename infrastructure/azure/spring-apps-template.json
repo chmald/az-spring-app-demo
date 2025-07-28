@@ -1,6 +1,9 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Production-ready Azure Spring Apps template with monitoring, security, and data persistence"
+  },
   "parameters": {
     "springAppsServiceName": {
       "type": "string",
@@ -22,10 +25,40 @@
       "metadata": {
         "description": "Resource group name"
       }
+    },
+    "applicationInsightsName": {
+      "type": "string",
+      "defaultValue": "[concat(parameters('springAppsServiceName'), '-ai')]",
+      "metadata": {
+        "description": "Name of the Application Insights component"
+      }
+    },
+    "databaseServerName": {
+      "type": "string",
+      "defaultValue": "[concat(parameters('springAppsServiceName'), '-dbserver')]",
+      "metadata": {
+        "description": "Name of the PostgreSQL server"
+      }
+    },
+    "databaseAdministratorLogin": {
+      "type": "string",
+      "defaultValue": "azureadmin",
+      "metadata": {
+        "description": "Database administrator login"
+      }
+    },
+    "databaseAdministratorPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Database administrator password (minimum 8 characters)"
+      }
     }
   },
   "variables": {
     "springAppsServiceName": "[parameters('springAppsServiceName')]",
+    "applicationInsightsName": "[parameters('applicationInsightsName')]",
+    "databaseServerName": "[parameters('databaseServerName')]",
+    "logAnalyticsWorkspaceName": "[concat(parameters('springAppsServiceName'), '-law')]",
     "applications": [
       {
         "name": "eureka-server",
@@ -67,10 +100,88 @@
   },
   "resources": [
     {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2021-12-01-preview",
+      "name": "[variables('logAnalyticsWorkspaceName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        },
+        "retentionInDays": 30
+      }
+    },
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[variables('applicationInsightsName')]",
+      "location": "[parameters('location')]",
+      "kind": "web",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsWorkspaceName'))]"
+      ],
+      "properties": {
+        "Application_Type": "web",
+        "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsWorkspaceName'))]"
+      }
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers",
+      "apiVersion": "2022-12-01",
+      "name": "[variables('databaseServerName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard_B1ms",
+        "tier": "Burstable"
+      },
+      "properties": {
+        "administratorLogin": "[parameters('databaseAdministratorLogin')]",
+        "administratorLoginPassword": "[parameters('databaseAdministratorPassword')]",
+        "version": "14",
+        "storage": {
+          "storageSizeGB": 32
+        },
+        "backup": {
+          "backupRetentionDays": 7,
+          "geoRedundantBackup": "Disabled"
+        },
+        "highAvailability": {
+          "mode": "Disabled"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers/databases",
+      "apiVersion": "2022-12-01",
+      "name": "[concat(variables('databaseServerName'), '/userdb')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('databaseServerName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers/databases",
+      "apiVersion": "2022-12-01",
+      "name": "[concat(variables('databaseServerName'), '/productdb')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('databaseServerName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers/databases",
+      "apiVersion": "2022-12-01",
+      "name": "[concat(variables('databaseServerName'), '/orderdb')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('databaseServerName'))]"
+      ]
+    },
+    {
       "type": "Microsoft.AppPlatform/Spring",
       "apiVersion": "2023-12-01",
       "name": "[variables('springAppsServiceName')]",
       "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]"
+      ],
       "sku": {
         "name": "S0",
         "tier": "Standard"
@@ -83,6 +194,10 @@
               "label": "main"
             }
           }
+        },
+        "tracing": {
+          "enabled": true,
+          "appInsightsInstrumentationKey": "[reference(resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))).InstrumentationKey]"
         }
       }
     },
@@ -129,7 +244,11 @@
           },
           "runtimeVersion": "[variables('applications')[copyIndex()].runtime]",
           "environmentVariables": {
-            "SPRING_PROFILES_ACTIVE": "azure"
+            "SPRING_PROFILES_ACTIVE": "azure",
+            "APPLICATIONINSIGHTS_CONNECTION_STRING": "[reference(resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))).ConnectionString]",
+            "SPRING_DATASOURCE_URL": "[concat('jdbc:postgresql://', reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('databaseServerName'))).fullyQualifiedDomainName, ':5432/')]",
+            "SPRING_DATASOURCE_USERNAME": "[parameters('databaseAdministratorLogin')]",
+            "SPRING_DATASOURCE_PASSWORD": "[parameters('databaseAdministratorPassword')]"
           }
         },
         "source": {
@@ -147,6 +266,18 @@
     "resourceGroupName": {
       "type": "string",
       "value": "[parameters('resourceGroupName')]"
+    },
+    "applicationInsightsName": {
+      "type": "string",
+      "value": "[variables('applicationInsightsName')]"
+    },
+    "databaseServerName": {
+      "type": "string",
+      "value": "[variables('databaseServerName')]"
+    },
+    "databaseConnectionString": {
+      "type": "string",
+      "value": "[concat('Server=', reference(resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('databaseServerName'))).fullyQualifiedDomainName, ';Database=userdb;Port=5432;User Id=', parameters('databaseAdministratorLogin'), ';Password=', parameters('databaseAdministratorPassword'), ';')]"
     }
   }
 }

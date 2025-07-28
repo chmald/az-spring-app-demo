@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Azure Spring Apps Demo Deployment Script
-# This script deploys the demo to Azure Spring Apps
+# This script deploys the demo to Azure Spring Apps with production-ready infrastructure
 
 set -e
 
@@ -27,6 +27,16 @@ if ! az account show &> /dev/null; then
     exit 1
 fi
 
+# Prompt for database password if not set
+if [ -z "$DB_PASSWORD" ]; then
+    read -s -p "Enter secure database administrator password (min 8 chars): " DB_PASSWORD
+    echo
+    if [ -z "$DB_PASSWORD" ]; then
+        echo "❌ Database password cannot be empty"
+        exit 1
+    fi
+fi
+
 # Create resource group if it doesn't exist
 echo "📦 Creating resource group if needed..."
 az group create --name "$RESOURCE_GROUP_NAME" --location "$LOCATION" --output table
@@ -35,13 +45,14 @@ az group create --name "$RESOURCE_GROUP_NAME" --location "$LOCATION" --output ta
 echo "🔨 Building applications..."
 mvn clean package -DskipTests
 
-# Deploy using ARM template
-echo "🚀 Deploying Azure Spring Apps service..."
+# Deploy using ARM template with enhanced features
+echo "🚀 Deploying Azure Spring Apps service with production infrastructure..."
 az deployment group create \
     --resource-group "$RESOURCE_GROUP_NAME" \
     --template-file infrastructure/azure/spring-apps-template.json \
     --parameters springAppsServiceName="$SPRING_APPS_SERVICE" \
-    --parameters location="$LOCATION"
+    --parameters location="$LOCATION" \
+    --parameters databaseAdministratorPassword="$DB_PASSWORD"
 
 # Deploy applications
 echo "📤 Deploying applications..."
@@ -89,3 +100,10 @@ echo "  Orders API: $GATEWAY_URL/api/orders"
 echo ""
 echo "📊 Monitor your applications in the Azure portal:"
 echo "https://portal.azure.com/#@/resource/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP_NAME/providers/Microsoft.AppPlatform/Spring/$SPRING_APPS_SERVICE"
+echo ""
+echo "🔐 Production features enabled:"
+echo "  ✅ Application Insights monitoring"
+echo "  ✅ PostgreSQL databases (userdb, productdb, orderdb)"
+echo "  ✅ Log Analytics workspace"
+echo "  ✅ Distributed tracing"
+echo "  ✅ Production-ready configuration"

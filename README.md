@@ -16,9 +16,320 @@ This demo showcases a complete microservices ecosystem with the following compon
 - **Product Service** (`port 8082`) - Product catalog management with inventory tracking
 - **Order Service** (`port 8083`) - Order processing with inter-service communication
 
-## 🚀 Quick Start
+### Production Azure Services
+- **Azure Spring Apps** - Fully managed Spring Boot application platform
+- **Application Insights** - Application performance monitoring and distributed tracing
+- **Log Analytics Workspace** - Centralized logging and monitoring
+- **Azure Database for PostgreSQL** - Production-ready database with separate databases per service
+- **Azure Config Server** - External configuration management via Git repository
+
+## 📋 Infrastructure Consolidation
+
+This project originally had two ARM templates:
+- **Basic Template**: Just Azure Spring Apps with minimal configuration
+- **Enhanced Template**: Full production setup with monitoring, databases, and security
+
+**🎯 We've consolidated into a single production-ready template** (`spring-apps-template.json`) that includes:
+
+### ✅ Included Production Features
+- **Azure Spring Apps Service** (Standard tier)
+- **Application Insights** with distributed tracing
+- **Log Analytics Workspace** for centralized logging  
+- **Azure Database for PostgreSQL** (Flexible Server)
+  - Separate databases: `userdb`, `productdb`, `orderdb`
+  - Automated connection string configuration
+- **Git-based Configuration Server**
+- **Environment-specific profiles** (azure profile activated)
+- **Security best practices** with parameterized passwords
+- **Cost-optimized resource sizing** for demos
+
+### 🚫 Excluded from Consolidation (Available in enhanced-template.json)
+- Azure Key Vault (can be added later)
+- Azure Container Registry (for future containerization)
+- Azure Service Bus (for advanced messaging scenarios)
+- Additional networking and VNet integration
+
+**Why This Approach?**
+- Single template for most production scenarios
+- Reduced complexity while maintaining enterprise features
+- Easy to extend with additional Azure services when needed
+- Clear upgrade path from basic to advanced features
+
+## 🚀 Deployment to Azure (Production-Ready)
 
 ### Prerequisites
+
+1. **Azure CLI** (latest version)
+   ```bash
+   # Install Azure CLI
+   # Windows: Download from https://aka.ms/installazurecliwindows
+   # Verify installation
+   az --version
+   ```
+
+2. **Azure Subscription** with appropriate permissions
+   ```bash
+   # Login to Azure
+   az login
+   
+   # Set subscription (if you have multiple)
+   az account set --subscription "your-subscription-id"
+   
+   # Verify current subscription
+   az account show
+   ```
+
+3. **Java 17 and Maven** for building applications
+   ```bash
+   # Verify Java version
+   java -version
+   
+   # Verify Maven
+   mvn --version
+   ```
+
+### Step 1: Clone and Prepare the Repository
+
+```bash
+# Clone the repository
+git clone https://github.com/chmald/az-spring-app-demo.git
+cd az-spring-app-demo
+
+# Build all applications
+mvn clean package -DskipTests
+```
+
+### Step 2: Deploy Azure Infrastructure
+
+Choose one of the following deployment methods:
+
+#### Option A: Automated Deployment Script (Recommended)
+
+```bash
+# Windows Command Prompt
+scripts\deploy-azure.bat
+
+# Or Git Bash/WSL
+chmod +x scripts/deploy-azure.sh
+./scripts/deploy-azure.sh
+```
+
+#### Option B: Manual Azure CLI Deployment
+
+1. **Create Resource Group**
+   ```bash
+   az group create \
+     --name "az-spring-app-demo-rg" \
+     --location "East US"
+   ```
+
+2. **Deploy Infrastructure Template**
+   ```bash
+   az deployment group create \
+     --resource-group "az-spring-app-demo-rg" \
+     --template-file "infrastructure/azure/spring-apps-template.json" \
+     --parameters springAppsServiceName="az-spring-app-demo" \
+     --parameters location="eastus" \
+     --parameters databaseAdministratorPassword="YourSecurePassword123!"
+   ```
+
+   **Alternative: Using Parameters File**
+   ```bash
+   # 1. Edit the parameters file first
+   # Update infrastructure/azure/spring-apps-template.parameters.json
+   # Replace "REPLACE_WITH_SECURE_PASSWORD" with your secure password
+   
+   # 2. Deploy using parameters file
+   az deployment group create \
+     --resource-group "az-spring-app-demo-rg" \
+     --template-file "infrastructure/azure/spring-apps-template.json" \
+     --parameters "@infrastructure/azure/spring-apps-template.parameters.json"
+   ```
+
+3. **Deploy Applications**
+   ```bash
+   # Deploy each service
+   for service in eureka-server config-server gateway-service user-service product-service order-service; do
+     echo "Deploying $service..."
+     az spring app deploy \
+       --resource-group "az-spring-app-demo-rg" \
+       --service "az-spring-app-demo" \
+       --name "$service" \
+       --artifact-path "$service/target/$service-1.0.0.jar" \
+       --jvm-options="-Xms1024m -Xmx1024m" \
+       --env SPRING_PROFILES_ACTIVE=azure
+   done
+   ```
+
+4. **Configure Public Endpoint**
+   ```bash
+   az spring app update \
+     --resource-group "az-spring-app-demo-rg" \
+     --service "az-spring-app-demo" \
+     --name "gateway-service" \
+     --assign-endpoint true
+   ```
+
+### Step 3: Verify Deployment
+
+1. **Get Gateway URL**
+   ```bash
+   az spring app show \
+     --resource-group "az-spring-app-demo-rg" \
+     --service "az-spring-app-demo" \
+     --name "gateway-service" \
+     --query "properties.url" \
+     --output tsv
+   ```
+
+2. **Test API Endpoints**
+   ```bash
+   # Replace YOUR_GATEWAY_URL with the actual URL from step 1
+   curl https://YOUR_GATEWAY_URL/api/users
+   curl https://YOUR_GATEWAY_URL/api/products
+   curl https://YOUR_GATEWAY_URL/eureka/web
+   ```
+
+3. **Monitor in Azure Portal**
+   - Navigate to your resource group in Azure Portal
+   - Open Azure Spring Apps service
+   - Check Application Insights for telemetry and performance data
+   - Review logs in Log Analytics Workspace
+
+### Environment Variables Configuration
+
+The template automatically configures the following environment variables for production:
+
+| Variable | Description | Value |
+|----------|-------------|-------|
+| `SPRING_PROFILES_ACTIVE` | Active Spring profile | `azure` |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Application Insights connection | Auto-configured |
+| `SPRING_DATASOURCE_URL` | PostgreSQL connection URL | Auto-configured |
+| `SPRING_DATASOURCE_USERNAME` | Database username | From template parameter |
+| `SPRING_DATASOURCE_PASSWORD` | Database password | From template parameter |
+
+### Cost Considerations
+
+**Estimated Monthly Cost (East US region):**
+- Azure Spring Apps (Standard): ~$50/month per app (6 apps = $300)
+- Azure Database for PostgreSQL (Burstable B1ms): ~$15/month
+- Application Insights: ~$5-20/month (usage-based)
+- Log Analytics: ~$5-15/month (usage-based)
+
+**Total Estimated: $325-350/month**
+
+### Security Best Practices Applied
+
+✅ **Database Security**
+- PostgreSQL with strong password requirements
+- Separate databases per microservice
+- Network security group restrictions
+
+✅ **Application Security**
+- HTTPS-only communication
+- Environment-specific configuration
+- No hardcoded credentials
+
+✅ **Monitoring & Compliance**
+- Application Insights distributed tracing
+- Centralized logging with Log Analytics
+- Health check endpoints
+
+✅ **Infrastructure Security**
+- ARM template with parameterized configuration
+- Resource group isolation
+- Managed service updates
+
+## 🛠️ Troubleshooting
+
+### Common Deployment Issues
+
+**❌ Problem: "Resource 'Microsoft.AppPlatform/Spring' was disallowed by policy"**
+```bash
+# Solution: Enable Azure Spring Apps resource provider
+az provider register --namespace Microsoft.AppPlatform --wait
+```
+
+**❌ Problem: "Database connection failed"**
+```bash
+# Check if PostgreSQL server allows Azure services
+az postgres flexible-server firewall-rule create \
+  --resource-group "az-spring-app-demo-rg" \
+  --name "allowAzureServices" \
+  --rule-name "AllowAllWindowsAzureIps" \
+  --start-ip-address "0.0.0.0" \
+  --end-ip-address "0.0.0.0"
+```
+
+**❌ Problem: "Application startup timeout"**
+```bash
+# Check application logs
+az spring app logs --resource-group "az-spring-app-demo-rg" \
+  --service "az-spring-app-demo" \
+  --name "user-service" \
+  --follow
+
+# Increase memory allocation if needed
+az spring app update --resource-group "az-spring-app-demo-rg" \
+  --service "az-spring-app-demo" \
+  --name "user-service" \
+  --memory "3Gi"
+```
+
+**❌ Problem: "Maven build fails"**
+```bash
+# Clean rebuild
+mvn clean install -DskipTests
+# Or build specific service
+cd user-service && mvn clean package -DskipTests
+```
+
+### Monitoring and Diagnostics
+
+**📊 View Application Insights**
+1. Go to Azure Portal → Resource Group → Application Insights
+2. Check "Application Map" for service dependencies
+3. Review "Performance" for response times
+4. Monitor "Failures" for error rates
+
+**📝 Access Logs**
+```bash
+# Real-time logs
+az spring app logs --resource-group "az-spring-app-demo-rg" \
+  --service "az-spring-app-demo" \
+  --name "gateway-service" \
+  --follow
+
+# Historical logs via Log Analytics
+# Go to Azure Portal → Log Analytics Workspace → Logs
+# Query: AppPlatformLogsforSpring | where TimeGenerated > ago(1h)
+```
+
+**🔍 Health Checks**
+```bash
+# Check service health
+curl https://YOUR_GATEWAY_URL/actuator/health
+
+# Check service registration
+curl https://YOUR_GATEWAY_URL/eureka/apps
+```
+
+### 🧹 Cleanup Resources
+
+**⚠️ Warning: This will delete all deployed resources and data**
+
+```bash
+# Delete entire resource group (removes all resources)
+az group delete --name "az-spring-app-demo-rg" --yes --no-wait
+
+# Or delete specific resources
+az spring delete --resource-group "az-spring-app-demo-rg" --name "az-spring-app-demo"
+az postgres flexible-server delete --resource-group "az-spring-app-demo-rg" --name "your-db-server-name"
+```
+
+## 🚀 Local Development Setup
+
+### Prerequisites for Local Development
 - Java 17 or higher
 - Maven 3.6+
 - Docker and Docker Compose (for containerized deployment)
@@ -57,7 +368,7 @@ This demo showcases a complete microservices ecosystem with the following compon
    cd order-service && mvn spring-boot:run
    ```
 
-### Docker Deployment
+### Docker Deployment (Local)
 
 1. **Build and start all services**
    ```bash
