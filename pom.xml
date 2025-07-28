@@ -21,6 +21,10 @@
         <spring-boot.version>3.2.1</spring-boot.version>
         <spring-cloud.version>2023.0.0</spring-cloud.version>
         
+        <!-- Azure dependencies -->
+        <azure.version>5.6.0</azure.version>
+        <applicationinsights.version>3.4.18</applicationinsights.version>
+        
         <!-- Other dependencies -->
         <testcontainers.version>1.19.3</testcontainers.version>
         <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
@@ -60,6 +64,15 @@
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers-bom</artifactId>
                 <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            
+            <!-- Azure Spring Boot BOM -->
+            <dependency>
+                <groupId>com.azure.spring</groupId>
+                <artifactId>spring-cloud-azure-dependencies</artifactId>
+                <version>${azure.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

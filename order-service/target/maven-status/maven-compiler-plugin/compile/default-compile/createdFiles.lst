@@ -1,10 +1,13 @@
 com/azure/demo/orderservice/client/UserServiceClient.class
 com/azure/demo/orderservice/repository/OrderRepository.class
+com/azure/demo/orderservice/messaging/OrderEvent.class
 com/azure/demo/orderservice/dto/CreateOrderRequest$OrderItemRequest.class
 com/azure/demo/orderservice/model/Order.class
 com/azure/demo/orderservice/dto/ProductDto.class
 com/azure/demo/orderservice/dto/UserDto.class
 com/azure/demo/orderservice/controller/OrderController.class
+com/azure/demo/orderservice/messaging/OrderEventConsumer.class
+com/azure/demo/orderservice/messaging/OrderEventPublisher.class
 com/azure/demo/orderservice/dto/CreateOrderRequest.class
 com/azure/demo/orderservice/model/OrderItem.class
 com/azure/demo/orderservice/model/OrderStatus.class

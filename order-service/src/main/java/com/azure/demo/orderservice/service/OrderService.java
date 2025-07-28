@@ -5,6 +5,8 @@ import com.azure.demo.orderservice.client.UserServiceClient;
 import com.azure.demo.orderservice.dto.CreateOrderRequest;
 import com.azure.demo.orderservice.dto.ProductDto;
 import com.azure.demo.orderservice.dto.UserDto;
+import com.azure.demo.orderservice.messaging.OrderEvent;
+import com.azure.demo.orderservice.messaging.OrderEventPublisher;
 import com.azure.demo.orderservice.model.Order;
 import com.azure.demo.orderservice.model.OrderItem;
 import com.azure.demo.orderservice.model.OrderStatus;
@@ -23,14 +25,17 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final UserServiceClient userServiceClient;
     private final ProductServiceClient productServiceClient;
+    private final OrderEventPublisher orderEventPublisher;
     
     @Autowired
     public OrderService(OrderRepository orderRepository, 
                        UserServiceClient userServiceClient,
-                       ProductServiceClient productServiceClient) {
+                       ProductServiceClient productServiceClient,
+                       @Autowired(required = false) OrderEventPublisher orderEventPublisher) {
         this.orderRepository = orderRepository;
         this.userServiceClient = userServiceClient;
         this.productServiceClient = productServiceClient;
+        this.orderEventPublisher = orderEventPublisher;
     }
     
     public List<Order> getAllOrders() {
@@ -97,15 +102,35 @@ public class OrderService {
             }
         }
         
-        return orderRepository.save(order);
+        Order savedOrder = orderRepository.save(order);
+        
+        // Publish order created event
+        if (orderEventPublisher != null) {
+            OrderEvent orderEvent = new OrderEvent(savedOrder.getId(), savedOrder.getUserId(), 
+                                                  "ORDER_CREATED", savedOrder.getStatus().toString());
+            orderEventPublisher.publishOrderCreated(orderEvent);
+        }
+        
+        return savedOrder;
     }
     
     public Order updateOrderStatus(Long id, OrderStatus newStatus) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Order not found with id: " + id));
         
+        OrderStatus oldStatus = order.getStatus();
         order.setStatus(newStatus);
-        return orderRepository.save(order);
+        Order savedOrder = orderRepository.save(order);
+        
+        // Publish order status changed event
+        if (orderEventPublisher != null) {
+            OrderEvent orderEvent = new OrderEvent(savedOrder.getId(), savedOrder.getUserId(), 
+                                                  "ORDER_STATUS_CHANGED", savedOrder.getStatus().toString());
+            orderEvent.setDetails("Status changed from " + oldStatus + " to " + newStatus);
+            orderEventPublisher.publishOrderStatusChanged(orderEvent);
+        }
+        
+        return savedOrder;
     }
     
     public void cancelOrder(Long id) {

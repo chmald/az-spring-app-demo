@@ -11,6 +11,8 @@ env:
   MAVEN_VERSION: '3.9.x'
   AZURE_SPRING_APPS_SERVICE: 'az-spring-app-demo'
   AZURE_RESOURCE_GROUP: 'az-spring-app-demo-rg'
+  AZURE_CONTAINER_REGISTRY: 'azspringappdemo'
+  AZURE_CLUSTER_NAME: 'az-spring-app-demo-aks'
 
 jobs:
   test:
@@ -78,10 +80,82 @@ jobs:
           */target/*.jar
         retention-days: 7
 
+  docker-build-push:
+    runs-on: ubuntu-latest
+    name: Build and Push Docker Images to ACR
+    needs: test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+        
+    - name: Build applications
+      run: mvn clean package -DskipTests
+      
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Login to Azure Container Registry
+      run: |
+        az acr login --name ${{ env.AZURE_CONTAINER_REGISTRY }}
+    
+    - name: Build and push Docker images
+      run: |
+        # Set image tag based on branch
+        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          TAG="latest"
+        else
+          TAG="develop"
+        fi
+        
+        # Build and push images for each service
+        services=("eureka-server" "config-server" "gateway-service" "user-service" "product-service" "order-service")
+        
+        for service in "${services[@]}"; do
+          echo "Building and pushing $service..."
+          
+          # Create Dockerfile for service
+          cat > $service/Dockerfile <<EOF
+        FROM openjdk:17-jre-slim
+        
+        # Install curl for health checks
+        RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+        
+        # Add application insights agent
+        ADD https://github.com/microsoft/ApplicationInsights-Java/releases/download/3.4.18/applicationinsights-agent-3.4.18.jar /app/applicationinsights-agent.jar
+        
+        COPY target/$service-1.0.0.jar /app/app.jar
+        EXPOSE 808\$((1 + \${#service}))
+        
+        ENTRYPOINT ["java", "-javaagent:/app/applicationinsights-agent.jar", "-jar", "/app/app.jar"]
+        EOF
+          
+          # Build and push image
+          docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/$service:$TAG $service/
+          docker push ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/$service:$TAG
+        done
+
   docker-build:
     runs-on: ubuntu-latest
-    name: Build Docker Images
+    name: Build Docker Images (Local)
     needs: test
+    if: github.event_name == 'pull_request'
     
     steps:
     - name: Checkout code
@@ -215,3 +289,126 @@ jobs:
         curl -f "$GATEWAY_URL/api/orders/health" || exit 1
         
         echo "✅ Smoke tests passed!"
+
+  deploy-k8s-staging:
+    runs-on: ubuntu-latest
+    name: Deploy to Kubernetes (Staging)
+    needs: [test, docker-build-push]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      
+    - name: Get AKS credentials
+      run: |
+        az aks get-credentials --resource-group ${{ env.AZURE_RESOURCE_GROUP }}-staging --name ${{ env.AZURE_CLUSTER_NAME }}-staging
+        
+    - name: Deploy to Kubernetes
+      run: |
+        # Update image tags for staging
+        sed -i 's/:latest/:develop/g' k8s/base/*.yaml
+        
+        # Apply configurations
+        kubectl apply -f k8s/base/configmaps-secrets.yaml
+        kubectl apply -f k8s/base/
+        
+        # Wait for deployments to be ready
+        kubectl wait --for=condition=available --timeout=300s deployment/eureka-server
+        kubectl wait --for=condition=available --timeout=300s deployment/config-server
+        kubectl wait --for=condition=available --timeout=300s deployment/gateway-service
+        kubectl wait --for=condition=available --timeout=300s deployment/user-service
+        kubectl wait --for=condition=available --timeout=300s deployment/product-service
+        kubectl wait --for=condition=available --timeout=300s deployment/order-service
+        
+    - name: Run K8s smoke tests
+      run: |
+        # Get gateway external IP
+        GATEWAY_IP=$(kubectl get service gateway-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+        
+        # Wait for IP to be assigned
+        retry_count=0
+        while [ -z "$GATEWAY_IP" ] && [ $retry_count -lt 10 ]; do
+          echo "Waiting for LoadBalancer IP..."
+          sleep 30
+          GATEWAY_IP=$(kubectl get service gateway-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          retry_count=$((retry_count + 1))
+        done
+        
+        if [ -n "$GATEWAY_IP" ]; then
+          echo "Testing gateway at http://$GATEWAY_IP:8080"
+          curl -f "http://$GATEWAY_IP:8080/actuator/health" || exit 1
+          echo "✅ K8s deployment successful!"
+        else
+          echo "❌ Failed to get LoadBalancer IP"
+          exit 1
+        fi
+
+  deploy-k8s-production:
+    runs-on: ubuntu-latest
+    name: Deploy to Kubernetes (Production)
+    needs: [test, docker-build-push]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      
+    - name: Get AKS credentials
+      run: |
+        az aks get-credentials --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --name ${{ env.AZURE_CLUSTER_NAME }}
+        
+    - name: Deploy to Kubernetes
+      run: |
+        # Apply configurations
+        kubectl apply -f k8s/base/configmaps-secrets.yaml
+        kubectl apply -f k8s/base/
+        
+        # Wait for deployments to be ready
+        kubectl wait --for=condition=available --timeout=300s deployment/eureka-server
+        kubectl wait --for=condition=available --timeout=300s deployment/config-server
+        kubectl wait --for=condition=available --timeout=300s deployment/gateway-service
+        kubectl wait --for=condition=available --timeout=300s deployment/user-service
+        kubectl wait --for=condition=available --timeout=300s deployment/product-service
+        kubectl wait --for=condition=available --timeout=300s deployment/order-service
+        
+    - name: Run K8s smoke tests
+      run: |
+        # Get gateway external IP
+        GATEWAY_IP=$(kubectl get service gateway-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+        
+        # Wait for IP to be assigned
+        retry_count=0
+        while [ -z "$GATEWAY_IP" ] && [ $retry_count -lt 10 ]; do
+          echo "Waiting for LoadBalancer IP..."
+          sleep 30
+          GATEWAY_IP=$(kubectl get service gateway-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          retry_count=$((retry_count + 1))
+        done
+        
+        if [ -n "$GATEWAY_IP" ]; then
+          echo "Testing gateway at http://$GATEWAY_IP:8080"
+          curl -f "http://$GATEWAY_IP:8080/actuator/health" || exit 1
+          echo "✅ K8s production deployment successful!"
+        else
+          echo "❌ Failed to get LoadBalancer IP"
+          exit 1
+        fi
