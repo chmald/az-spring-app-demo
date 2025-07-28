@@ -6,7 +6,7 @@
       "value": "az-spring-app-demo"
     },
     "location": {
-      "value": "eastus"
+      "value": "westus2"
     },
     "databaseAdministratorLogin": {
       "value": "azureadmin"

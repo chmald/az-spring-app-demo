@@ -101,92 +101,63 @@ mvn clean package -DskipTests
 
 ### Step 2: Deploy Azure Infrastructure
 
-Choose one of the following deployment methods:
-
-#### Option A: Automated Deployment Script (Recommended)
-
-```bash
-# Windows Command Prompt
-scripts\deploy-azure.bat
-
-# Or Git Bash/WSL
-chmod +x scripts/deploy-azure.sh
-./scripts/deploy-azure.sh
-```
-
-#### Option B: Manual Azure CLI Deployment
+#### Manual Azure CLI Deployment
 
 1. **Create Resource Group**
    ```bash
-   az group create \
-     --name "az-spring-app-demo-rg" \
-     --location "East US"
+   az group create --name "az-spring-app-demo-rg" --location "westus2"
    ```
 
 2. **Deploy Infrastructure Template**
    ```bash
-   az deployment group create \
-     --resource-group "az-spring-app-demo-rg" \
-     --template-file "infrastructure/azure/spring-apps-template.json" \
-     --parameters springAppsServiceName="az-spring-app-demo" \
-     --parameters location="eastus" \
-     --parameters databaseAdministratorPassword="YourSecurePassword123!"
+   az deployment group create --resource-group "az-spring-app-demo-rg" --template-file "infrastructure/azure/spring-apps-template.json" --parameters springAppsServiceName="az-spring-app-demo" location="westus2" databaseAdministratorPassword="YourSecurePassword123!"
    ```
 
    **Alternative: Using Parameters File**
    ```bash
-   # 1. Edit the parameters file first
-   # Update infrastructure/azure/spring-apps-template.parameters.json
-   # Replace "REPLACE_WITH_SECURE_PASSWORD" with your secure password
-   
-   # 2. Deploy using parameters file
-   az deployment group create \
-     --resource-group "az-spring-app-demo-rg" \
-     --template-file "infrastructure/azure/spring-apps-template.json" \
-     --parameters "@infrastructure/azure/spring-apps-template.parameters.json"
+   az deployment group create --resource-group "az-spring-app-demo-rg" --template-file "infrastructure/azure/spring-apps-template.json" --parameters "@infrastructure/azure/spring-apps-template.parameters.json"
    ```
 
 3. **Deploy Applications**
    ```bash
-   # Deploy each service
-   for service in eureka-server config-server gateway-service user-service product-service order-service; do
-     echo "Deploying $service..."
-     az spring app deploy \
-       --resource-group "az-spring-app-demo-rg" \
-       --service "az-spring-app-demo" \
-       --name "$service" \
-       --artifact-path "$service/target/$service-1.0.0.jar" \
-       --jvm-options="-Xms1024m -Xmx1024m" \
-       --env SPRING_PROFILES_ACTIVE=azure
-   done
+   az spring app deploy --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "eureka-server" --artifact-path "eureka-server/target/eureka-server-1.0.0.jar" --jvm-options="-Xms1024m -Xmx1024m" --env SPRING_PROFILES_ACTIVE=azure
+   ```
+   ```bash
+   az spring app deploy --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "config-server" --artifact-path "config-server/target/config-server-1.0.0.jar" --jvm-options="-Xms1024m -Xmx1024m" --env SPRING_PROFILES_ACTIVE=azure
+   ```
+   ```bash
+   az spring app deploy --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "gateway-service" --artifact-path "gateway-service/target/gateway-service-1.0.0.jar" --jvm-options="-Xms1024m -Xmx1024m" --env SPRING_PROFILES_ACTIVE=azure
+   ```
+   ```bash
+   az spring app deploy --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "user-service" --artifact-path "user-service/target/user-service-1.0.0.jar" --jvm-options="-Xms1024m -Xmx1024m" --env SPRING_PROFILES_ACTIVE=azure
+   ```
+   ```bash
+   az spring app deploy --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "product-service" --artifact-path "product-service/target/product-service-1.0.0.jar" --jvm-options="-Xms1024m -Xmx1024m" --env SPRING_PROFILES_ACTIVE=azure
+   ```
+   ```bash
+   az spring app deploy --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "order-service" --artifact-path "order-service/target/order-service-1.0.0.jar" --jvm-options="-Xms1024m -Xmx1024m" --env SPRING_PROFILES_ACTIVE=azure
    ```
 
 4. **Configure Public Endpoint**
    ```bash
-   az spring app update \
-     --resource-group "az-spring-app-demo-rg" \
-     --service "az-spring-app-demo" \
-     --name "gateway-service" \
-     --assign-endpoint true
+   az spring app update --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "gateway-service" --assign-endpoint true
    ```
 
 ### Step 3: Verify Deployment
 
 1. **Get Gateway URL**
    ```bash
-   az spring app show \
-     --resource-group "az-spring-app-demo-rg" \
-     --service "az-spring-app-demo" \
-     --name "gateway-service" \
-     --query "properties.url" \
-     --output tsv
+   az spring app show --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "gateway-service" --query "properties.url" --output tsv
    ```
 
 2. **Test API Endpoints**
    ```bash
-   # Replace YOUR_GATEWAY_URL with the actual URL from step 1
    curl https://YOUR_GATEWAY_URL/api/users
+   ```
+   ```bash
    curl https://YOUR_GATEWAY_URL/api/products
+   ```
+   ```bash
    curl https://YOUR_GATEWAY_URL/eureka/web
    ```
 
@@ -210,7 +181,7 @@ The template automatically configures the following environment variables for pr
 
 ### Cost Considerations
 
-**Estimated Monthly Cost (East US region):**
+**Estimated Monthly Cost (West US 2 region):**
 - Azure Spring Apps (Standard): ~$50/month per app (6 apps = $300)
 - Azure Database for PostgreSQL (Burstable B1ms): ~$15/month
 - Application Insights: ~$5-20/month (usage-based)
@@ -244,87 +215,61 @@ The template automatically configures the following environment variables for pr
 
 ### Common Deployment Issues
 
-**❌ Problem: "Resource 'Microsoft.AppPlatform/Spring' was disallowed by policy"**
+**ERROR: Problem: "Resource 'Microsoft.AppPlatform/Spring' was disallowed by policy"**
 ```bash
-# Solution: Enable Azure Spring Apps resource provider
 az provider register --namespace Microsoft.AppPlatform --wait
 ```
 
-**❌ Problem: "Database connection failed"**
+**ERROR: Problem: "Database connection failed"**
 ```bash
-# Check if PostgreSQL server allows Azure services
-az postgres flexible-server firewall-rule create \
-  --resource-group "az-spring-app-demo-rg" \
-  --name "allowAzureServices" \
-  --rule-name "AllowAllWindowsAzureIps" \
-  --start-ip-address "0.0.0.0" \
-  --end-ip-address "0.0.0.0"
+az postgres flexible-server firewall-rule create --resource-group "az-spring-app-demo-rg" --name "allowAzureServices" --rule-name "AllowAllWindowsAzureIps" --start-ip-address "0.0.0.0" --end-ip-address "0.0.0.0"
 ```
 
-**❌ Problem: "Application startup timeout"**
+**ERROR: Problem: "Application startup timeout"**
 ```bash
-# Check application logs
-az spring app logs --resource-group "az-spring-app-demo-rg" \
-  --service "az-spring-app-demo" \
-  --name "user-service" \
-  --follow
-
-# Increase memory allocation if needed
-az spring app update --resource-group "az-spring-app-demo-rg" \
-  --service "az-spring-app-demo" \
-  --name "user-service" \
-  --memory "3Gi"
+az spring app logs --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "user-service" --follow
+```
+```bash
+az spring app update --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "user-service" --memory "3Gi"
 ```
 
-**❌ Problem: "Maven build fails"**
+**ERROR: Problem: "Maven build fails"**
 ```bash
-# Clean rebuild
 mvn clean install -DskipTests
-# Or build specific service
-cd user-service && mvn clean package -DskipTests
 ```
 
 ### Monitoring and Diagnostics
 
-**📊 View Application Insights**
+**View Application Insights**
 1. Go to Azure Portal → Resource Group → Application Insights
 2. Check "Application Map" for service dependencies
 3. Review "Performance" for response times
 4. Monitor "Failures" for error rates
 
-**📝 Access Logs**
+**Access Logs**
 ```bash
-# Real-time logs
-az spring app logs --resource-group "az-spring-app-demo-rg" \
-  --service "az-spring-app-demo" \
-  --name "gateway-service" \
-  --follow
-
-# Historical logs via Log Analytics
-# Go to Azure Portal → Log Analytics Workspace → Logs
-# Query: AppPlatformLogsforSpring | where TimeGenerated > ago(1h)
+az spring app logs --resource-group "az-spring-app-demo-rg" --service "az-spring-app-demo" --name "gateway-service" --follow
 ```
 
-**🔍 Health Checks**
+**Health Checks**
 ```bash
-# Check service health
 curl https://YOUR_GATEWAY_URL/actuator/health
-
-# Check service registration
+```
+```bash
 curl https://YOUR_GATEWAY_URL/eureka/apps
 ```
 
-### 🧹 Cleanup Resources
+### Cleanup Resources
 
-**⚠️ Warning: This will delete all deployed resources and data**
+**WARNING: This will delete all deployed resources and data**
 
 ```bash
-# Delete entire resource group (removes all resources)
 az group delete --name "az-spring-app-demo-rg" --yes --no-wait
+```
 
-# Or delete specific resources
+**Or delete specific resources**
+```bash
 az spring delete --resource-group "az-spring-app-demo-rg" --name "az-spring-app-demo"
-az postgres flexible-server delete --resource-group "az-spring-app-demo-rg" --name "your-db-server-name"
 ```
 
 ## 🚀 Local Development Setup
