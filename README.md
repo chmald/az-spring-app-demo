@@ -1,12 +1,8 @@
-# Azure Spring Apps Demo
+# Azure Container Apps Spring Boot Demo
 
-A comprehensive demonstration of Azure Spring Apps with microservices architecture, featuring service discovery with Eureka, centralized configuration management, API Gateway, and inter-service communication.### ✅ Infrastructure Security**
-- Bicep template with latest API versions
-- Parameterized configuration without hardcoded secrets
-- Resource group isolation
-- Managed service updates
-- Configuration Service with Git-based settings
-- Application Insights APM integration## 🏗️ Architecture Overview
+A comprehensive demonstration of Spring Boot microservices deployed on Azure Container Apps, featuring service discovery with Eureka, centralized configuration management, API Gateway, and inter-service communication.
+
+## 🏗️ Architecture Overview
 
 This demo showcases a complete microservices ecosystem with the following components:
 
@@ -21,37 +17,30 @@ This demo showcases a complete microservices ecosystem with the following compon
 - **Order Service** (`port 8083`) - Order processing with inter-service communication
 
 ### Production Azure Services
-- **Azure Spring Apps** - Fully managed Spring Boot application platform
+- **Azure Container Apps** - Modern, serverless container hosting platform
 - **Application Insights** - Application performance monitoring and distributed tracing
 - **Log Analytics Workspace** - Centralized logging and monitoring
 - **Azure Database for PostgreSQL** - Production-ready database with separate databases per service
-- **Azure Config Server** - External configuration management via Git repository
+- **Azure Container Registry** - Container image storage and management
 
-## 📋 Infrastructure Consolidation
+## 📋 Infrastructure Overview
 
-This project originally had two ARM templates:
-- **Basic Template**: Just Azure Spring Apps with minimal configuration
-- **Enhanced Template**: Full production setup with monitoring, databases, and security
+This project uses modern Azure Container Apps for hosting Spring Boot microservices with:
 
-**🎯 We've consolidated into a single production-ready Bicep template** (`infra/main.bicep`) that includes:
+**🎯 Production-ready Bicep template** (`infra/main.bicep`) that includes:
 
 ### ✅ Included Production Features
-- **Azure Spring Apps Service** (Standard tier)
-- **Application Insights** with distributed tracing via APM integration
+- **Azure Container Apps Environment** with managed infrastructure
+- **Application Insights** with distributed tracing and APM integration
 - **Log Analytics Workspace** for centralized logging  
 - **Azure Database for PostgreSQL** (Flexible Server)
   - Separate databases: `userdb`, `productdb`, `orderdb`
   - Automated connection string configuration
-- **Configuration Service** with Git-based configuration management
+- **Azure Container Registry** for container image management
+- **User-assigned Managed Identity** for secure Azure service access
 - **Environment-specific profiles** (azure profile activated)
 - **Security best practices** with parameterized passwords
-- **Cost-optimized resource sizing** for demos
-
-### 🚫 Excluded from Consolidation (Available in enhanced-template.json)
-- Azure Key Vault (can be added later)
-- Azure Container Registry (for future containerization)
-- Azure Service Bus (for advanced messaging scenarios)
-- Additional networking and VNet integration
+- **Cost-optimized resource sizing** with usage-based pricing
 
 **Why Bicep over ARM?**
 - **Cleaner syntax**: More readable and maintainable than JSON
@@ -62,22 +51,22 @@ This project originally had two ARM templates:
 
 ## 🎯 Key Bicep Template Features
 
-### Modern Azure Spring Apps Architecture
-The Bicep template uses the latest Azure Spring Apps API (2023-12-01) with:
+### Modern Azure Container Apps Architecture
+The Bicep template uses the latest Azure Container Apps API with:
 
-- **Separate Configuration Service**: Dedicated resource for centralized config management
-- **Application Performance Monitoring**: Native Application Insights integration via APM
-- **Enhanced Security**: Latest security practices and resource isolation
+- **Container Apps Environment**: Shared hosting environment for all microservices
+- **Application Performance Monitoring**: Native Application Insights integration
+- **Enhanced Security**: User-assigned managed identities and secure networking
 - **Type Safety**: Compile-time validation and IntelliSense support
+- **Resource Tokens**: Unique naming for multi-environment deployments
 
 ### Resource Organization
 ```
 ├── infra/
 │   ├── main.bicep              # Main Bicep template
 │   └── main.parameters.json    # Deployment parameters
-└── infrastructure/azure/        # Legacy ARM templates (for reference)
-    ├── spring-apps-template.json
-    └── spring-apps-template.parameters.json
+├── azure.yaml                  # Azure Developer CLI configuration
+└── Individual service directories with Dockerfiles
 ```
 
 ## 🚀 Deployment to Azure (Production-Ready)
@@ -423,14 +412,13 @@ az group delete --name "az-spring-app-demo-rg" --yes --no-wait
 
 ### Docker Deployment (Local)
 
-1. **Build and start all services**
-   ```bash
-   docker-compose up --build
-   ```
+**Note**: This project is now focused on Azure Container Apps deployment. For local development, use the individual service Maven commands above or build individual Docker images.
 
-2. **Scale specific services** (optional)
+1. **Build individual service images** (example for user-service)
    ```bash
-   docker-compose up --scale user-service=2 --scale product-service=2
+   cd user-service
+   docker build -t user-service:latest .
+   docker run -p 8081:8081 user-service:latest
    ```
 
 ## 📋 API Documentation
@@ -529,10 +517,10 @@ All services expose actuator endpoints:
 ## 🐳 Docker Configuration
 
 The project includes:
-- **Multi-stage Dockerfile** for optimized container builds
-- **Docker Compose** configuration with health checks
-- **Service dependencies** and startup ordering
-- **Network isolation** for microservices communication
+- **Individual Dockerfiles** per service for optimized container builds
+- **Multi-stage builds** for efficient image creation
+- **Service dependencies** and health checks
+- **Azure Container Apps** deployment configuration
 
 ## 🔒 Security Features
 
@@ -596,13 +584,12 @@ az spring app deploy --resource-group rg-name --service spring-service-name --na
 ### Azure Kubernetes Service (AKS)
 Deploy to Kubernetes with full container orchestration:
 ```bash
-# Build and push images
-mvn clean package -DskipTests
-docker build -t azspringappdemo.azurecr.io/service-name:latest service/
-docker push azspringappdemo.azurecr.io/service-name:latest
+# Note: Kubernetes manifests are available in the kubernetes-deployment.md documentation
+# Build and push images to Azure Container Registry first
+docker build -t <your-acr>.azurecr.io/user-service:latest user-service/
+docker push <your-acr>.azurecr.io/user-service:latest
 
-# Deploy to Kubernetes
-kubectl apply -f k8s/base/
+# Apply Kubernetes manifests (see docs/kubernetes-deployment.md for details)
 ```
 
 ### Local Development with Azure Services
@@ -619,9 +606,11 @@ mvn spring-boot:run
 
 ## 📚 Documentation
 
-- **[Azure Integrations Guide](docs/azure-integrations.md)** - Complete Azure services integration
+- **[Azure Integrations Guide](docs/azure-integrations.md)** - Azure services integration (Note: Some content may reference Azure Spring Apps)
 - **[Kubernetes Deployment Guide](docs/kubernetes-deployment.md)** - Kubernetes deployment instructions  
 - **[Architecture Overview](docs/architecture.md)** - System architecture and design
+
+**Note**: Some documentation files may contain references to Azure Spring Apps or other services not currently implemented in this Container Apps version.
 
 ## 🔧 Configuration Profiles
 
@@ -643,8 +632,10 @@ The application supports multiple configuration profiles:
 ├── user-service/          # User Management Microservice
 ├── product-service/       # Product Catalog Microservice
 ├── order-service/         # Order Processing Microservice
-├── docker-compose.yml     # Local development setup
-├── Dockerfile            # Multi-service container build
+├── infra/                 # Azure infrastructure (Bicep templates)
+├── docs/                  # Documentation
+├── azure.yaml            # Azure Developer CLI configuration
+├── Dockerfile            # Multi-service container build (alternative)
 └── README.md            # This file
 ```
 
@@ -660,42 +651,38 @@ mvn test
 # Package applications
 mvn clean package
 
-# Build Docker images
-docker-compose build
+# Build individual Docker images
+cd user-service && docker build -t user-service:latest .
 
-# Start all services
-docker-compose up
+# Run individual services locally
+cd user-service && mvn spring-boot:run
 
-# Stop all services
-docker-compose down
-
-# View service logs
-docker-compose logs -f [service-name]
+# Deploy to Azure
+azd up
 ```
 
 ## 🎯 Azure Cloud Integrations
 
-This demo now includes comprehensive Azure cloud integrations:
+This demo includes comprehensive Azure cloud integrations optimized for Container Apps:
 
 ### ☁️ Implemented Azure Services
 
-- **✅ Azure Key Vault** integration for secrets management
+- **✅ Azure Container Apps** for scalable container hosting
 - **✅ Azure Application Insights** for distributed tracing and monitoring
-- **✅ Azure Service Bus** for asynchronous messaging
 - **✅ Azure Database for PostgreSQL** for production data storage
 - **✅ Azure Container Registry** for container management
-- **✅ GitHub Actions CI/CD** pipeline with Azure deployment
-- **✅ Kubernetes deployment** manifests for AKS
+- **✅ User-assigned Managed Identity** for secure service authentication
+- **✅ Log Analytics Workspace** for centralized logging
 
 ### 🏗️ Infrastructure as Code
 
 This project uses modern Infrastructure as Code practices:
 
 - **Bicep Templates**: Modern, type-safe infrastructure definitions in `infra/`
-- **ARM Templates**: Legacy JSON templates in `infrastructure/azure/` (for compatibility)
-- **Kubernetes Manifests**: Container orchestration and deployment in `k8s/`
-- **Docker Configurations**: Optimized container images with Application Insights
-- **CI/CD Pipelines**: Automated build, test, and deployment
+- **Azure Developer CLI**: Streamlined deployment with `azure.yaml`
+- **Container Apps**: Optimized container deployment manifests
+- **Docker Configurations**: Individual Dockerfiles per service
+- **CI/CD Pipelines**: Automated build, test, and deployment support
 
 ### 📊 Enhanced Monitoring
 
@@ -706,10 +693,10 @@ This project uses modern Infrastructure as Code practices:
 
 ### 🔐 Security Features
 
-- **Azure Key Vault**: Centralized secrets management
-- **Managed Identities**: Secure authentication to Azure services
-- **Network Security**: VNet integration and security groups
+- **User-assigned Managed Identity**: Secure authentication to Azure services
 - **Container Security**: Non-root containers and security contexts
+- **Network Security**: Private networking within Container Apps Environment
+- **Secure Configuration**: Parameterized templates without hardcoded secrets
 
 ## 📝 Contributing
 
@@ -725,4 +712,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Built with ❤️ for Azure Spring Apps demonstrations**
+**Built with ❤️ for Azure Container Apps and Spring Boot microservices demonstrations**
